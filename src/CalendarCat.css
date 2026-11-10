@@ -1,0 +1,250 @@
+.cat-stage {
+  --cat-fur: #c99462;
+  --cat-dark: #aa754e;
+  --cat-cream: #efdbc0;
+  --cat-ear: #b96f65;
+  --cat-ink: #403b32;
+  pointer-events: none;
+  user-select: none;
+}
+/* Float above the dashboard without reserving any layout space. */
+.cat-day {
+  position: absolute;
+  bottom: 100%;
+  left: 24px;
+  right: 24px;
+  z-index: 1;
+  height: 44px;
+}
+.cat-traveler {
+  width: 100%;
+  height: 100%;
+}
+.cat-art {
+  display: block;
+  width: 52px;
+  height: 44px;
+  transform-origin: center;
+}
+.cat-day .cat-traveler {
+  width: calc(100% - 52px);
+  animation: cat-stroll 48s linear infinite;
+}
+.cat-day .cat-art {
+  animation: cat-turn 48s step-end infinite;
+}
+.cat-tail {
+  transform-origin: 47px 79px;
+  animation: cat-tail-sway 4s ease-in-out infinite;
+}
+.cat-eyes {
+  transform-origin: 79px 49px;
+  animation: cat-blink 7s linear infinite;
+}
+.cat-leg {
+  transform-origin: 62px 74px;
+  animation: cat-step 2s ease-in-out infinite;
+}
+.cat-leg-back {
+  animation-delay: -1s;
+}
+.cat-walk-pose {
+  animation: cat-walking 48s step-end infinite;
+}
+.cat-sit-pose {
+  transform-origin: 54px 94px;
+  animation:
+    cat-sitting 48s step-end infinite,
+    cat-stretch-body 144s ease-in-out infinite;
+}
+.cat-head {
+  transform-origin: 79px 60px;
+  animation: cat-stretch-head 144s ease-in-out infinite;
+}
+.cat-sleeping {
+  position: relative;
+  width: 120px;
+  height: 74px;
+  flex-shrink: 0;
+}
+.cat-sleeping .cat-art {
+  width: 120px;
+  height: 100px;
+  margin-top: -26px;
+}
+.cat-breath {
+  transform-origin: 60px 96px;
+  animation: cat-breathe 5s ease-in-out infinite;
+}
+.cat-snores span {
+  position: absolute;
+  top: 8px;
+  left: 44px;
+  color: var(--cat-cream);
+  font:
+    500 11px/1 system-ui,
+    sans-serif;
+  opacity: 0.55;
+  animation: cat-snore 4.8s ease-in-out infinite;
+}
+.cat-snores span:nth-child(2) {
+  top: 0;
+  left: 59px;
+  font-size: 14px;
+  animation-delay: -1.6s;
+}
+.cat-snores span:nth-child(3) {
+  top: -9px;
+  left: 77px;
+  font-size: 17px;
+  animation-delay: -3.2s;
+}
+@keyframes cat-snore {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  25%,
+  55% {
+    opacity: 0.65;
+  }
+  90% {
+    opacity: 0;
+    transform: translate(6px, -10px);
+  }
+}
+.cat-stage[data-paused="true"] * {
+  animation-play-state: paused;
+}
+@keyframes cat-stroll {
+  0%,
+  18% {
+    transform: translateX(0);
+  }
+  43%,
+  68% {
+    transform: translateX(100%);
+  }
+  93%,
+  100% {
+    transform: translateX(0);
+  }
+}
+@keyframes cat-turn {
+  0% {
+    transform: scaleX(1);
+  }
+  68% {
+    transform: scaleX(-1);
+  }
+  93% {
+    transform: scaleX(1);
+  }
+}
+@keyframes cat-walking {
+  0%,
+  43%,
+  93% {
+    opacity: 0;
+  }
+  18%,
+  68% {
+    opacity: 1;
+  }
+}
+@keyframes cat-sitting {
+  0%,
+  43%,
+  93% {
+    opacity: 1;
+  }
+  18%,
+  68% {
+    opacity: 0;
+  }
+}
+/* Three walking loops contain six sits (the initial pose counts as sit one).
+   Stretch on sits three and six, at 44.64s and 116.64s. Both finish before
+   walking resumes; CSS pause/reduced-motion rules keep every track in sync. */
+@keyframes cat-stretch-body {
+  0%,
+  31%,
+  34%,
+  81%,
+  84%,
+  100% {
+    transform: scale(1, 1);
+  }
+  32%,
+  33%,
+  82%,
+  83% {
+    transform: scale(1.12, 0.8);
+  }
+}
+@keyframes cat-stretch-head {
+  0%,
+  31%,
+  34%,
+  81%,
+  84%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  32%,
+  33%,
+  82%,
+  83% {
+    transform: translate(5px, 12px) rotate(8deg);
+  }
+}
+@keyframes cat-step {
+  0%,
+  100% {
+    transform: rotate(-9deg);
+  }
+  50% {
+    transform: rotate(9deg);
+  }
+}
+@keyframes cat-tail-sway {
+  0%,
+  100% {
+    transform: rotate(-5deg);
+  }
+  50% {
+    transform: rotate(9deg);
+  }
+}
+@keyframes cat-blink {
+  0%,
+  44%,
+  48%,
+  100% {
+    transform: scaleY(1);
+  }
+  46% {
+    transform: scaleY(0.1);
+  }
+}
+@keyframes cat-breathe {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(1.035);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cat-stage * {
+    animation: none !important;
+  }
+  .cat-walk-pose {
+    opacity: 0;
+  }
+  .cat-sit-pose {
+    opacity: 1;
+  }
+}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CalendarCat } from "./CalendarCat";
 import {
   addDays,
   dateKey,
@@ -48,6 +49,7 @@ export function Dashboard({
             hour: "numeric",
             minute: "2-digit",
           })}
+          <CalendarCat sleeping />
         </div>
         <p className="night-date">
           {format(now, data.settings.timezone, {
@@ -95,7 +97,7 @@ export function Dashboard({
       </main>
     );
   const groceries = data.items.filter(
-    (i) => i.list === "grocery" && !i.completed,
+    (i) => i.list === "grocery" && !i.completed
   );
   const todos = data.items.filter((i) => i.list === "todo" && !i.completed);
   return (
@@ -153,6 +155,7 @@ export function Dashboard({
         <a href="/manage">Manage ↗</a>
       </div>
       <div className={`dashboard-body ${brief ? "show-brief" : ""}`}>
+        <CalendarCat />
         <Calendar data={data} now={now} />
         <aside>
           <WeatherCard data={data} now={now} />
@@ -202,7 +205,7 @@ export function Dashboard({
                 format(now, data.settings.timezone, {
                   hour: "2-digit",
                   hourCycle: "h23",
-                }),
+                })
               ) >= 18;
             return (
               <div

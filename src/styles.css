@@ -234,6 +234,7 @@ form {
   white-space: nowrap;
 }
 .dashboard-body {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   gap: 20px;
@@ -249,6 +250,12 @@ form {
 .calendar {
   display: flex;
   flex-direction: column;
+  min-height: 0;
+}
+.calendar-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   min-height: 0;
 }
 .calendar-toolbar {
@@ -766,6 +773,8 @@ form {
   letter-spacing: -8.4px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: baseline;
 }
 .night-date {
   font-size: 24px;
