@@ -372,6 +372,16 @@
     transform: scaleY(1.035);
   }
 }
+/* Trial for the daytime frame: keep the companion seated without continuous motion. */
+.cat-day * {
+  animation: none !important;
+}
+.cat-day .cat-walk-pose {
+  opacity: 0;
+}
+.cat-day .cat-sit-pose {
+  opacity: 1;
+}
 @media (prefers-reduced-motion: reduce) {
   .cat-stage * {
     animation: none !important;
