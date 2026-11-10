@@ -1,3 +1,10 @@
+import {
+  defaultFaithGoals,
+  sameFaithEntry,
+  type FaithEntry,
+  type FaithInput,
+  type FaithGoals,
+} from "../shared/faith";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
@@ -125,6 +132,86 @@ export class DynamoRepository implements Repository {
           ExpressionAttributeValues: { ":version": version },
         }),
       );
+    } catch (e) {
+      if (conditional(e)) throw new Conflict();
+      throw e;
+    }
+  }
+  async faithEntries() {
+    const entries: FaithEntry[] = [];
+    let cursor: Record<string, unknown> | undefined;
+    do {
+      const page = await this.client.send(
+        new QueryCommand({
+          TableName: this.table,
+          KeyConditionExpression: "pk = :pk AND begins_with(sk, :prefix)",
+          ExpressionAttributeValues: {
+            ":pk": "home",
+            ":prefix": "faith-entry:",
+          },
+          ConsistentRead: true,
+          ExclusiveStartKey: cursor,
+        }),
+      );
+      entries.push(...(page.Items ?? []).map((row) => row.data as FaithEntry));
+      cursor = page.LastEvaluatedKey;
+    } while (cursor);
+    return entries;
+  }
+  async faithGoals() {
+    return (
+      (await this.get<FaithGoals>("faith-goals")) ?? { ...defaultFaithGoals }
+    );
+  }
+  async addFaith(input: FaithInput) {
+    const entry = { ...input, createdAt: new Date().toISOString() };
+    try {
+      await this.client.send(
+        new PutCommand({
+          TableName: this.table,
+          Item: { ...this.key("faith-entry:" + input.id), data: entry },
+          ConditionExpression: "attribute_not_exists(pk)",
+        }),
+      );
+      return entry;
+    } catch (e) {
+      if (!conditional(e)) throw e;
+      const saved = await this.get<FaithEntry>("faith-entry:" + input.id);
+      if (saved && sameFaithEntry(saved, input)) return saved;
+      throw new Conflict();
+    }
+  }
+  async removeFaith(id: string) {
+    await this.client.send(
+      new DeleteCommand({
+        TableName: this.table,
+        Key: this.key("faith-entry:" + id),
+      }),
+    );
+  }
+  async saveFaithGoals(goals: FaithGoals) {
+    const next = { ...goals, version: goals.version + 1 };
+    try {
+      await this.client.send(
+        new PutCommand({
+          TableName: this.table,
+          Item: { ...this.key("faith-goals"), data: next },
+          ConditionExpression:
+            goals.version === 0
+              ? "attribute_not_exists(pk)"
+              : "#data.#version = :version",
+          ...(goals.version === 0
+            ? {}
+            : {
+                ExpressionAttributeNames: {
+                  "#data": "data",
+                  "#version": "version",
+                },
+                ExpressionAttributeValues: { ":version": goals.version },
+              }),
+        }),
+      );
+      return next;
     } catch (e) {
       if (conditional(e)) throw new Conflict();
       throw e;

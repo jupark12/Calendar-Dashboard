@@ -1,3 +1,4 @@
+import { faithEntrySchema, faithGoalsSchema } from "../shared/faith";
 import express, { type ErrorRequestHandler } from "express";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
@@ -177,6 +178,43 @@ export function createApp(
       return;
     }
     res.json(payload);
+  });
+  app.get("/api/faith", (_req, res) => {
+    res.json({ entries: store.faithEntries(), goals: store.faithGoals() });
+  });
+  app.post("/api/faith/entries", (req, res) => {
+    const input = faithEntrySchema.parse(req.body);
+    if (input.date > dateKey(new Date(), store.settings().timezone)) {
+      res.status(400).json({ error: "Choose today or an earlier date." });
+      return;
+    }
+    const entry = store.addFaith(input);
+    if (!entry) {
+      res
+        .status(409)
+        .json({
+          error:
+            "This entry already exists with different details. Refresh before retrying.",
+        });
+      return;
+    }
+    res.status(201).json(entry);
+  });
+  app.delete("/api/faith/entries/:id", (req, res) => {
+    store.removeFaith(z.string().uuid().parse(req.params.id));
+    res.json({ ok: true });
+  });
+  app.put("/api/faith/goals", (req, res) => {
+    const goals = store.saveFaithGoals(faithGoalsSchema.parse(req.body));
+    if (!goals) {
+      res
+        .status(409)
+        .json({
+          error: "Goals changed on another device. Refresh and try again.",
+        });
+      return;
+    }
+    res.json(goals);
   });
   app.use("/api", (_req, res, next) => {
     if (res.locals.role !== "admin") {

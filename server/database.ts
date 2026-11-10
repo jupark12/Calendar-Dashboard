@@ -1,3 +1,10 @@
+import {
+  defaultFaithGoals,
+  sameFaithEntry,
+  type FaithEntry,
+  type FaithInput,
+  type FaithGoals,
+} from "../shared/faith";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -11,6 +18,9 @@ export class Store {
     this.db.exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;");
     this.db.exec(
       `CREATE TABLE IF NOT EXISTS migrations(version INTEGER PRIMARY KEY); CREATE TABLE IF NOT EXISTS kv(key TEXT PRIMARY KEY,value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS items(id TEXT PRIMARY KEY,body TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1); CREATE TABLE IF NOT EXISTS sessions(hash TEXT PRIMARY KEY,role TEXT NOT NULL,expires INTEGER NOT NULL); INSERT OR IGNORE INTO migrations VALUES(1);`,
+    );
+    this.db.exec(
+      "CREATE TABLE IF NOT EXISTS faith_entries(id TEXT PRIMARY KEY, body TEXT NOT NULL)",
     );
     if (!this.get("settings")) this.set("settings", defaultSettings);
   }
@@ -60,6 +70,46 @@ export class Store {
         .prepare("DELETE FROM items WHERE id=? AND version=?")
         .run(id, version).changes > 0
     );
+  }
+  faithEntries(): FaithEntry[] {
+    return (
+      this.db
+        .prepare("SELECT body FROM faith_entries ORDER BY rowid DESC")
+        .all() as { body: string }[]
+    ).map((row) => JSON.parse(row.body) as FaithEntry);
+  }
+  faithGoals(): FaithGoals {
+    return this.get<FaithGoals>("faith-goals") ?? { ...defaultFaithGoals };
+  }
+  addFaith(input: FaithInput): FaithEntry | null {
+    const entry = { ...input, createdAt: new Date().toISOString() };
+    this.db
+      .prepare("INSERT OR IGNORE INTO faith_entries VALUES(?,?)")
+      .run(entry.id, JSON.stringify(entry));
+    const row = this.db
+      .prepare("SELECT body FROM faith_entries WHERE id=?")
+      .get(entry.id) as { body: string };
+    const saved = JSON.parse(row.body) as FaithEntry;
+    return sameFaithEntry(saved, input) ? saved : null;
+  }
+  removeFaith(id: string) {
+    this.db.prepare("DELETE FROM faith_entries WHERE id=?").run(id);
+  }
+  saveFaithGoals(goals: FaithGoals): FaithGoals | null {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      if (this.faithGoals().version !== goals.version) {
+        this.db.exec("ROLLBACK");
+        return null;
+      }
+      const next = { ...goals, version: goals.version + 1 };
+      this.set("faith-goals", next);
+      this.db.exec("COMMIT");
+      return next;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
   close() {
     this.db.close();

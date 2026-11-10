@@ -1,3 +1,4 @@
+import type { FaithEntry, FaithInput, FaithGoals } from "../shared/faith";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { Item, Settings, Snapshot } from "../shared/model";
@@ -47,6 +48,11 @@ export const fingerprint = (settings: Settings, secrets: Secrets) =>
 export class Conflict extends Error {}
 export class NotReady extends Error {}
 export interface Repository {
+  faithEntries(): Promise<FaithEntry[]>;
+  faithGoals(): Promise<FaithGoals>;
+  addFaith(input: FaithInput): Promise<FaithEntry>;
+  removeFaith(id: string): Promise<void>;
+  saveFaithGoals(goals: FaithGoals): Promise<FaithGoals>;
   settings(): Promise<Settings>;
   saveSettings(settings: Settings, previous: string): Promise<void>;
   items(): Promise<Item[]>;

@@ -1,8 +1,11 @@
-import React, { useState } from "react";
+import React, { lazy, Suspense, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { useClock, useDashboard, api } from "./data";
 import { Dashboard } from "./Dashboard";
 import { Manage } from "./Manage";
+const FaithTracker = lazy(() =>
+  import("./FaithTracker").then((module) => ({ default: module.FaithTracker })),
+);
 import "./styles.css";
 function App() {
   const { data, status, refresh } = useDashboard();
@@ -78,6 +81,16 @@ function App() {
       <main className="access-page">
         <p>Getting your home ready…</p>
       </main>
+    );
+  if (location.pathname === "/faith" || location.pathname === "/faith/")
+    return (
+      <Suspense
+        fallback={
+          <main className="access-page">Getting your garden ready…</main>
+        }
+      >
+        <FaithTracker dashboard={data} now={now} />
+      </Suspense>
     );
   return manage ? (
     <Manage data={data} refresh={refresh} status={status} />

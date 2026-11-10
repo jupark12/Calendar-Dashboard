@@ -41,6 +41,7 @@ export function Manage({ data, refresh, status }: Props) {
         <a className="brand" href="/">
           <span className="brand-icon">⌂</span>Home HQ
         </a>
+        <a href="/faith">Bible & Prayer ↗</a>
         <a href="/">Back to display ↗</a>
       </header>
       <div className="manage-intro">

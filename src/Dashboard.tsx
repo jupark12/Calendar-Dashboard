@@ -14,6 +14,8 @@ import { format, dayName } from "./dashboardFormat";
 import { Calendar } from "./DashboardCalendar";
 import { WeatherCard } from "./DashboardWeather";
 import { Upcoming } from "./DashboardUpcoming";
+import { faithStreak, growers, growerNames } from "../shared/faith";
+import { useFaith } from "./useFaith";
 export function Dashboard({
   data,
   now,
@@ -27,6 +29,7 @@ export function Dashboard({
   const [brief, setBrief] = useState(false);
   const [waking, setWaking] = useState(false);
   const morningCat = useMorningCatMessage(now, data.settings.timezone);
+  const { data: faith } = useFaith();
   useEffect(() => {
     if (!waking) return;
     // Paint the awake cat before starting the heavier dashboard render.
@@ -41,6 +44,10 @@ export function Dashboard({
     return () => cancelAnimationFrame(frame);
   }, [waking]);
   const today = dateKey(now, data.settings.timezone);
+  const dayOfWeek = new Date(`${today}T12:00:00Z`).getUTCDay();
+  const weekDays = Array.from({ length: 7 }, (_, index) =>
+    addDays(today, index - dayOfWeek),
+  );
   const catMessage = today.endsWith("-02-22")
     ? "Happy Birthday Soobin!"
     : morningCat.message;
@@ -53,7 +60,8 @@ export function Dashboard({
     return (
       <main className="night-screen">
         <div className="night-top">
-          <span>⌂ HOME HQ</span>
+          <span aria-hidden="true">⌂</span>
+          <a href="/faith">Bible & Prayer ↗</a>
           <span>
             {status === "offline"
               ? "Offline · last known information"
@@ -115,17 +123,94 @@ export function Dashboard({
       </main>
     );
   const groceries = data.items.filter(
-    (i) => i.list === "grocery" && !i.completed
+    (i) => i.list === "grocery" && !i.completed,
   );
   const todos = data.items.filter((i) => i.list === "todo" && !i.completed);
   return (
     <main className="dashboard">
       <header className="dashboard-header">
-        <a href="/" className="brand">
+        <div className="brand" aria-hidden="true">
           <span className="brand-icon">⌂</span>
-          <div>
-            Home HQ<small>{data.settings.household}</small>
-          </div>
+        </div>
+        <a
+          className="header-faith"
+          href="/faith"
+          aria-label="Bible and Prayer streaks for Jun and Soobin"
+        >
+          {growers.map((person) => {
+            const streak = faith
+              ? faithStreak(faith.entries, person, today)
+              : null;
+            const activeDays = new Set(
+              faith?.entries
+                .filter((entry) => entry.person === person)
+                .map((entry) => entry.date) ?? [],
+            );
+            return (
+              <span className="header-streak-card" key={person}>
+                <span className="header-streak-count">
+                  <span className="header-streak-name">
+                    {growerNames[person]}
+                  </span>
+                  <span className="header-streak-number">
+                    <span aria-hidden="true">
+                      {streak === null ? (
+                        ""
+                      ) : streak > 0 ? (
+                        "🔥"
+                      ) : (
+                        <svg
+                          className="header-sad-face"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <circle
+                            cx="8.5"
+                            cy="9"
+                            r="1"
+                            fill="currentColor"
+                            stroke="none"
+                          />
+                          <circle
+                            cx="15.5"
+                            cy="9"
+                            r="1"
+                            fill="currentColor"
+                            stroke="none"
+                          />
+                          <path d="M7.5 17c.8-2 2.3-3 4.5-3s3.7 1 4.5 3" />
+                        </svg>
+                      )}
+                    </span>
+                    {streak ?? "–"}
+                  </span>
+                  <span className="header-streak-caption">DAY STREAK</span>
+                </span>
+                <span
+                  className="header-streak-week"
+                  aria-label={`${growerNames[person]} activity this week, Sunday through Saturday`}
+                >
+                  {weekDays.map((day) => (
+                    <span
+                      className={`header-streak-day ${activeDays.has(day) ? "active" : ""}`}
+                      key={day}
+                    >
+                      <span>
+                        {new Date(`${day}T12:00:00Z`).toLocaleDateString(
+                          "en-US",
+                          { weekday: "narrow", timeZone: "UTC" },
+                        )}
+                      </span>
+                      <i
+                        aria-label={`${day}: ${activeDays.has(day) ? "active" : "no activity"}`}
+                      />
+                    </span>
+                  ))}
+                </span>
+              </span>
+            );
+          })}
         </a>
         <div className="header-date">
           <strong>
@@ -170,6 +255,7 @@ export function Dashboard({
         <button aria-pressed={brief} onClick={() => setBrief(true)}>
           Weather & upcoming
         </button>
+        <a href="/faith">Bible & Prayer ↗</a>
         <a href="/manage">Manage ↗</a>
       </div>
       <div className={`dashboard-body ${brief ? "show-brief" : ""}`}>
@@ -223,7 +309,7 @@ export function Dashboard({
                 format(now, data.settings.timezone, {
                   hour: "2-digit",
                   hourCycle: "h23",
-                })
+                }),
               ) >= 18;
             return (
               <div

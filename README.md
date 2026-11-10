@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open **http://localhost:3000** for the display and **http://localhost:3000/manage** for editing. Both are served by the same process. Demo mode is the default: it uses clearly labeled example weather/events and seeds real persistent sample lists in `data/demo.sqlite`. It never calls external integrations. The current household date and night schedule are real; after 10 PM, use **Show dashboard for 15 minutes** to preview the day layout.
+Open **http://localhost:3000** for the display and **http://localhost:3000/manage** for editing. The **Bible & Prayer** screen is at **http://localhost:3000/faith**, linked from the display, resting screen, and management header. All three screens are served by the same process. Demo mode is the default: it uses clearly labeled example weather/events and seeds real persistent sample lists in `data/demo.sqlite`. It never calls external integrations. The current household date and night schedule are real; after 10 PM, use **Show dashboard for 15 minutes** to preview the day layout.
 
 ```sh
 npm run validate       # typecheck, ESLint, unit/API tests, production build
@@ -31,6 +31,14 @@ The demo has no authentication and binds to loopback by default. Do not publish 
 - Display-only authentication; a separately authenticated responsive `/manage` interface. Loading, errors, partial integration failures, offline status and last-known data.
 
 At 1280×800 the calendar, weather, upcoming events, lists and pickups fit without scrolling. On narrower or shorter displays a **Calendar / Weather & upcoming** switch prioritizes legibility. Dense calendar days open a paginated agenda. The management page intentionally scrolls on phones. Temperatures are Fahrenheit. NWS alerts cover US locations; outside its coverage, the alert panel reports unavailable status rather than claiming there are no alerts.
+
+## Bible & Prayer
+
+The `/faith` screen keeps the Rooted Together garden inside Home HQ. Jun and Soobin can log Bible chapters and prayer minutes, compare weekly/all-time XP, build streaks and levels, complete daily quests, and collect milestones. Custom entries support dates and notes; entries can be removed or undone, and goals can be adjusted.
+
+Progress is shared through the existing household database: SQLite locally, DynamoDB in AWS. No extra service or account is needed. Display sessions can view the tracker; the existing management password unlocks edits. The screen refreshes every 30 seconds while visible. Dates and Monday week boundaries use the household timezone. Data is not silently queued offline. A JSON backup can be downloaded from the screen.
+
+The local schema initializes automatically without altering existing records. Cloud records use `faith-entry:` keys and `faith-goals` in the existing table; deploy the updated API alongside the frontend to enable cloud storage.
 
 ## Connect your Google Calendars
 

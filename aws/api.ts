@@ -1,3 +1,4 @@
+import { faithEntrySchema, faithGoalsSchema } from "../shared/faith";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import type {
   APIGatewayProxyEventV2,
@@ -170,6 +171,29 @@ export function createHandler(deps: Dependencies) {
           return respond(304, null, { ETag: etag });
         return respond(200, payload, { ETag: etag });
       }
+      if (method === "GET" && path === "/api/faith") {
+        const [entries, goals] = await Promise.all([
+          deps.repo.faithEntries(),
+          deps.repo.faithGoals(),
+        ]);
+        return respond(200, { entries, goals });
+      }
+      if (method === "POST" && path === "/api/faith/entries") {
+        const input = faithEntrySchema.parse(body);
+        if (input.date > dateKey(new Date(), settings.timezone))
+          return failure(400, "Choose today or an earlier date.");
+        return respond(201, await deps.repo.addFaith(input));
+      }
+      const faithMatch = /^\/api\/faith\/entries\/([^/]+)$/.exec(path);
+      if (method === "DELETE" && faithMatch) {
+        await deps.repo.removeFaith(z.string().uuid().parse(faithMatch[1]));
+        return respond(200, { ok: true });
+      }
+      if (method === "PUT" && path === "/api/faith/goals")
+        return respond(
+          200,
+          await deps.repo.saveFaithGoals(faithGoalsSchema.parse(body)),
+        );
       if (role !== "admin") return failure(403, "Management access required");
       if (method === "POST" && path === "/api/items")
         return respond(201, await deps.repo.add(itemSchema.parse(body)));

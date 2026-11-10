@@ -1,3 +1,8 @@
+import {
+  defaultFaithGoals,
+  sameFaithEntry,
+  type FaithEntry,
+} from "../shared/faith";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
@@ -28,10 +33,29 @@ const origin = "https://home-hq.example.com";
 function fixture() {
   let settings = structuredClone(defaultSettings);
   const items = new Map<string, Item>();
+  const faith = new Map<string, FaithEntry>();
+  let goals = { ...defaultFaithGoals };
   const sessions = new Map<string, Session>();
   let attempts = 0;
   let published: Published | null = null;
   const repo: Repository = {
+    faithEntries: async () => [...faith.values()],
+    faithGoals: async () => goals,
+    addFaith: async (input) => {
+      const saved = faith.get(input.id);
+      if (saved && !sameFaithEntry(saved, input)) throw new Conflict();
+      const entry = saved ?? { ...input, createdAt: new Date().toISOString() };
+      faith.set(entry.id, entry);
+      return entry;
+    },
+    removeFaith: async (id) => {
+      faith.delete(id);
+    },
+    saveFaithGoals: async (input) => {
+      if (goals.version !== input.version) throw new Conflict();
+      goals = { ...input, version: input.version + 1 };
+      return goals;
+    },
     settings: async () => settings,
     saveSettings: async (value, previous) => {
       if (JSON.stringify(settings) !== previous) throw new Conflict();
@@ -419,4 +443,143 @@ test("DynamoDB uses atomic item/settings conditions, paginates lists, and reject
     },
   );
   assert.equal((await repo.items()).length, 2);
+});
+
+test("Lambda faith tracker uses household auth, idempotent entries, validation and goal conflicts", async () => {
+  const f = fixture();
+  const display = await f.login("display"),
+    admin = await f.login("admin");
+  assert.equal((await f.request("/faith")).statusCode, 401);
+  const input = {
+    id: "d7bd7cb5-4db4-4da1-961a-83f506e5c700",
+    person: "jun",
+    kind: "reading",
+    amount: 2,
+    date: "2026-01-01",
+    note: "John 1–2",
+  };
+  assert.equal(
+    (await f.request("/faith/entries", "POST", input, display)).statusCode,
+    201,
+  );
+  assert.equal(
+    (
+      await f.request(
+        "/faith/entries",
+        "POST",
+        { ...input, date: "2999-01-01" },
+        admin,
+      )
+    ).statusCode,
+    400,
+  );
+  assert.equal(
+    (await f.request("/faith/entries", "POST", { ...input, amount: 0 }, admin))
+      .statusCode,
+    400,
+  );
+  assert.equal(
+    (await f.request("/faith/entries", "POST", input, admin)).statusCode,
+    201,
+  );
+  assert.equal(
+    (await f.request("/faith/entries", "POST", input, admin)).statusCode,
+    201,
+  );
+  assert.equal(
+    (await f.request("/faith/entries", "POST", { ...input, amount: 3 }, admin))
+      .statusCode,
+    409,
+  );
+  const shared = JSON.parse(
+    (await f.request("/faith", "GET", undefined, display)).body!,
+  );
+  assert.equal(shared.entries.length, 1);
+  assert.equal(shared.entries[0].amount, 2);
+  const goals = { reading: 2, prayer: 10, version: 0 };
+  assert.equal(
+    (await f.request("/faith/goals", "PUT", goals, display)).statusCode,
+    200,
+  );
+  assert.equal(
+    (await f.request("/faith/goals", "PUT", goals, admin)).statusCode,
+    409,
+  );
+  assert.equal(
+    (await f.request(`/faith/entries/${input.id}`, "DELETE", {}, display))
+      .statusCode,
+    200,
+  );
+  assert.equal(
+    (await f.request(`/faith/entries/${input.id}`, "DELETE", {}, admin))
+      .statusCode,
+    200,
+  );
+  assert.equal((await f.repo.faithEntries()).length, 0);
+});
+
+test("Dynamo faith entries paginate and deduplicate retries; goal updates are conditional", async (t) => {
+  const client = DynamoDBDocumentClient.from(
+    new DynamoDBClient({ region: "us-east-1" }),
+  );
+  const repo = new DynamoRepository("test", client);
+  const input = {
+    id: "d7bd7cb5-4db4-4da1-961a-83f506e5c700",
+    person: "jun" as const,
+    kind: "reading" as const,
+    amount: 2,
+    date: "2026-01-01",
+    note: "",
+  };
+  const entry = { ...input, createdAt: "2026-01-01T12:00:00Z" };
+  const failure = Object.assign(new Error("conflict"), {
+    name: "ConditionalCheckFailedException",
+  });
+  t.mock.method(
+    client,
+    "send",
+    async (command: {
+      input: Record<string, unknown>;
+      constructor: { name: string };
+    }) => {
+      if (command.constructor.name === "GetCommand")
+        return { Item: { data: entry } };
+      assert.equal(
+        command.input.ConditionExpression,
+        "attribute_not_exists(pk)",
+      );
+      throw failure;
+    },
+  );
+  assert.deepEqual(await repo.addFaith(input), entry);
+  await assert.rejects(repo.addFaith({ ...input, amount: 3 }), Conflict);
+  await assert.rejects(
+    repo.saveFaithGoals({ reading: 1, prayer: 5, version: 0 }),
+    Conflict,
+  );
+  t.mock.restoreAll();
+  let pages = 0;
+  t.mock.method(
+    client,
+    "send",
+    async (command: { input: Record<string, unknown> }) => {
+      assert.equal(command.input.ConsistentRead, true);
+      assert.deepEqual(command.input.ExpressionAttributeValues, {
+        ":pk": "home",
+        ":prefix": "faith-entry:",
+      });
+      pages++;
+      if (pages === 1)
+        return {
+          Items: [{ data: entry }],
+          LastEvaluatedKey: { pk: "home", sk: "faith-entry:one" },
+        };
+      assert.deepEqual(command.input.ExclusiveStartKey, {
+        pk: "home",
+        sk: "faith-entry:one",
+      });
+      return { Items: [{ data: { ...entry, id: "two" } }] };
+    },
+  );
+  assert.equal((await repo.faithEntries()).length, 2);
 });
