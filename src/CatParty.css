@@ -1,0 +1,76 @@
+.cat-party-rain {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  overflow: hidden;
+  pointer-events: none;
+}
+.cat-party-particle {
+  position: absolute;
+  top: -180px;
+  width: var(--size);
+  height: var(--size);
+  animation: cat-party-fall var(--duration) var(--delay) linear both;
+  will-change: transform;
+}
+.cat-party-particle svg {
+  width: 100%;
+  height: 100%;
+}
+.is-confetti {
+  background: currentColor;
+}
+.is-confetti.shape-0 {
+  border-radius: 50%;
+}
+.is-confetti.shape-1 {
+  height: calc(var(--size) * 0.45);
+  border-radius: 3px;
+}
+.is-confetti.shape-2 {
+  clip-path: polygon(
+    50% 0,
+    61% 35%,
+    100% 38%,
+    70% 60%,
+    80% 100%,
+    50% 77%,
+    20% 100%,
+    30% 60%,
+    0 38%,
+    39% 35%
+  );
+}
+@keyframes cat-party-fall {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0);
+  }
+  to {
+    transform: translate3d(var(--drift), calc(100vh + 360px), 0)
+      rotate(var(--spin));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cat-party-particle {
+    top: 25%;
+    animation: cat-party-fade 1.8s ease-out both;
+    will-change: opacity;
+  }
+  .cat-party-particle:nth-child(3n) {
+    top: 55%;
+  }
+  .cat-party-particle:nth-child(3n + 1) {
+    top: 75%;
+  }
+  .cat-party-particle:nth-child(n + 17) {
+    display: none;
+  }
+  @keyframes cat-party-fade {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+}

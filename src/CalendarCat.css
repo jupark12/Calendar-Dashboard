@@ -322,3 +322,25 @@
     opacity: 1;
   }
 }
+
+/* Only the cat itself catches clicks; the track stays transparent to input. */
+.cat-day .cat-art {
+  pointer-events: all;
+  cursor: pointer;
+  filter: drop-shadow(0 0 0 transparent);
+  transition: filter 300ms ease-in-out;
+  outline: none;
+}
+.cat-day .cat-art:hover,
+.cat-day .cat-art:focus {
+  filter: drop-shadow(0 0 2px #ffdfac) drop-shadow(0 0 4px #ffe283)
+    drop-shadow(0 0 5px #ffd469);
+}
+.cat-day .cat-art:focus-visible {
+  outline: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cat-day .cat-art {
+    transition: none;
+  }
+}
