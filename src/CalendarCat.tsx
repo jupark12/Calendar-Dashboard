@@ -6,13 +6,21 @@ import { useCatParty } from "./CatParty";
 export function CalendarCat({
   sleeping = false,
   message,
+  waking = false,
+  onActivate,
 }: {
   sleeping?: boolean;
   message?: string;
+  waking?: boolean;
+  onActivate?: () => void;
 }) {
   const { celebrate, confetti } = useCatParty();
   const root = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(true);
+  const activate = () => {
+    onActivate?.();
+    celebrate();
+  };
 
   useEffect(() => {
     let inView = true;
@@ -38,11 +46,11 @@ export function CalendarCat({
       {confetti}
       <div
         ref={root}
-        className={`cat-stage ${sleeping ? "cat-sleeping" : "cat-day"}${message ? " cat-speaking" : ""}`}
+        className={`cat-stage ${sleeping ? "cat-sleeping" : "cat-day"}${message ? " cat-speaking" : ""}${waking ? " cat-waking" : ""}`}
         data-paused={paused}
         aria-hidden={sleeping && !message ? true : undefined}
       >
-        {sleeping && (
+        {sleeping && !waking && (
           <div className="cat-snores">
             <span>Z</span>
             <span>Z</span>
@@ -61,14 +69,14 @@ export function CalendarCat({
             aria-label={sleeping ? undefined : "Rain confetti and cats"}
             tabIndex={sleeping ? undefined : 0}
             focusable={!sleeping}
-            onClick={sleeping ? undefined : celebrate}
+            onClick={sleeping ? undefined : activate}
             onKeyDown={
               sleeping
                 ? undefined
                 : (event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
-                      if (!event.repeat) celebrate();
+                      if (!event.repeat) activate();
                     }
                   }
             }
@@ -104,7 +112,11 @@ export function CalendarCat({
                   fill="var(--cat-ear)"
                 />
                 <path
-                  d="M25 70Q30 75 35 70M42 70Q47 75 52 70"
+                  d={
+                    waking
+                      ? "M30 67V72M47 67V72"
+                      : "M25 70Q30 75 35 70M42 70Q47 75 52 70"
+                  }
                   stroke="var(--cat-ink)"
                   strokeWidth="2"
                   strokeLinecap="round"

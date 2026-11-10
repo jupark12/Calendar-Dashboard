@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { CalendarCat } from "./CalendarCat";
+import { useMorningCatMessage } from "./useMorningCatMessage";
 import {
   addDays,
   dateKey,
   eventOnDay,
   eventTime,
-  nightActive,
   weatherLabel,
 } from "../shared/time";
 import type { DashboardData } from "./data";
@@ -25,13 +25,26 @@ export function Dashboard({
 }) {
   const [manualDayUntil, setManualDayUntil] = useState(0);
   const [brief, setBrief] = useState(false);
+  const [waking, setWaking] = useState(false);
+  const morningCat = useMorningCatMessage(now, data.settings.timezone);
+  useEffect(() => {
+    if (!waking) return;
+    // Paint the awake cat before starting the heavier dashboard render.
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        startTransition(() => {
+          setManualDayUntil(Date.now() + 15 * 60000);
+          setWaking(false);
+        });
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [waking]);
   const today = dateKey(now, data.settings.timezone);
   const catMessage = today.endsWith("-02-22")
     ? "Happy Birthday Soobin!"
-    : undefined;
-  const night =
-    nightActive(data.settings, now, data.weather) &&
-    now.getTime() >= manualDayUntil;
+    : morningCat.message;
+  const night = now.getTime() >= manualDayUntil;
   const tomorrow = data.events
     .filter((e) => eventOnDay(e, addDays(today, 1), data.settings.timezone))
     .sort((a, b) => a.start.localeCompare(b.start))[0];
@@ -44,7 +57,7 @@ export function Dashboard({
           <span>
             {status === "offline"
               ? "Offline · last known information"
-              : "Settling in for the night"}
+              : "Resting until you need me"}
           </span>
         </div>
         <div className="night-clock">
@@ -52,7 +65,7 @@ export function Dashboard({
             hour: "numeric",
             minute: "2-digit",
           })}
-          <CalendarCat sleeping />
+          <CalendarCat sleeping waking={waking} />
         </div>
         <p className="night-date">
           {format(now, data.settings.timezone, {
@@ -92,10 +105,12 @@ export function Dashboard({
           <small>Some integrations are unavailable · last known data</small>
         )}
         <button
-          onClick={() => setManualDayUntil(Date.now() + 15 * 60000)}
+          onClick={() => setWaking(true)}
+          disabled={waking}
+          aria-busy={waking}
           className="night-wake"
         >
-          Show dashboard for 15 minutes ↗
+          {waking ? "Waking up…" : "Show dashboard for 15 minutes ↗"}
         </button>
       </main>
     );
@@ -158,7 +173,7 @@ export function Dashboard({
         <a href="/manage">Manage ↗</a>
       </div>
       <div className={`dashboard-body ${brief ? "show-brief" : ""}`}>
-        <CalendarCat message={catMessage} />
+        <CalendarCat message={catMessage} onActivate={morningCat.dismiss} />
         <Calendar data={data} now={now} />
         <aside>
           <WeatherCard data={data} now={now} />
