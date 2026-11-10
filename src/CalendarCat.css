@@ -10,11 +10,14 @@
 /* Float above the dashboard without reserving any layout space. */
 .cat-day {
   position: absolute;
-  bottom: 100%;
+  bottom: calc(100% - 56px);
   left: 24px;
   right: 24px;
   z-index: 1;
-  height: 44px;
+  height: 100px;
+  /* Reserve clipping room below the edge for hanging, without layout height.
+     Keep the translated track contained so it cannot widen the page. */
+  overflow: hidden;
 }
 .cat-traveler {
   width: 100%;
@@ -31,7 +34,78 @@
   animation: cat-stroll 48s linear infinite;
 }
 .cat-day .cat-art {
+  overflow: visible;
   animation: cat-turn 48s step-end infinite;
+}
+.cat-ground-pose {
+  animation: cat-ground 144s step-end infinite;
+}
+.cat-hang-pose {
+  opacity: 0;
+  animation: cat-hang 144s step-end infinite;
+}
+.cat-climber {
+  animation: cat-climb 144s ease-in-out infinite;
+}
+.cat-hang-arms {
+  transform-origin: 60px 100px;
+  animation: cat-reach 144s ease-in-out infinite;
+}
+/* Every third sit: lower for 1.44s, hang for 3.6s, climb for 2.16s.
+   The paws stay on the dashboard edge while the body moves below them. */
+@keyframes cat-ground {
+  0%,
+  36.5%,
+  86.5% {
+    opacity: 1;
+  }
+  31.5%,
+  81.5% {
+    opacity: 0;
+  }
+}
+@keyframes cat-hang {
+  0%,
+  36.5%,
+  86.5% {
+    opacity: 0;
+  }
+  31.5%,
+  81.5% {
+    opacity: 1;
+  }
+}
+@keyframes cat-climb {
+  0%,
+  31.5%,
+  36.5%,
+  81.5%,
+  86.5%,
+  100% {
+    transform: translateY(0);
+  }
+  32.5%,
+  35%,
+  82.5%,
+  85% {
+    transform: translateY(60px);
+  }
+}
+@keyframes cat-reach {
+  0%,
+  31.5%,
+  36.5%,
+  81.5%,
+  86.5%,
+  100% {
+    transform: scaleY(0.1);
+  }
+  32.5%,
+  35%,
+  82.5%,
+  85% {
+    transform: scaleY(2.4);
+  }
 }
 .cat-tail {
   transform-origin: 47px 79px;
