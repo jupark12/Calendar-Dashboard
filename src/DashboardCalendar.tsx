@@ -12,7 +12,7 @@ import {
 import type { DashboardData } from "./data";
 import { format, dayName } from "./dashboardFormat";
 export function Calendar({ data, now }: { data: DashboardData; now: Date }) {
-  const [view, setView] = useState("month");
+  const [view, setView] = useState("week");
   const [offset, setOffset] = useState(0);
   const [dayPage, setDayPage] = useState(0);
   const celebration = data.events.find(
