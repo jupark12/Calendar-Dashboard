@@ -24,26 +24,57 @@ There is no EC2 server, container, load balancer, NAT gateway, VPC, or always-ru
 
 ## 1. Prepare tools and AWS credentials
 
-Run all commands from the repository root:
+**This step has been completed on Jun's Mac.** The following versions and AWS identity were verified during setup:
+
+| Tool / check | Verified result |
+| --- | --- |
+| Node.js | `v24.22.2` |
+| AWS CLI | `2.39.6` |
+| AWS SAM CLI | `1.171.0` |
+| AWS profile | `default` |
+| Authenticated IAM user | `serverlessAdmin` |
+
+The identity check confirms working credentials, but does not prove that the user has every permission required to deploy the stack. No new `home-hq` profile is needed for this Mac.
+
+In each new terminal, select the Homebrew Node 24 installation and the existing AWS profile, then work from the repository root:
 
 ```sh
+export PATH="/opt/homebrew/opt/node@24/bin:$PATH"
+export AWS_PROFILE=default
+export AWS_REGION=us-east-1
 cd /Users/junpark/Desktop/Code_Projects/Calendar-Dashboard
-nvm use
+node --version
+aws --version
+sam --version
+aws sts get-caller-identity
+```
+
+Expect Node `v24.x.x`, AWS CLI `2.x.x`, a SAM CLI version, and identity JSON containing `UserId`, `Account`, and `Arn`. Confirm that `Account` is the account you intend to deploy into. The identity check is read-only. To keep Node 24 selected in new terminals, add the `export PATH` line above to `~/.zshrc` once. If you use nvm instead of Homebrew for Node, use `nvm use` in this repository instead of changing PATH.
+
+Install project dependencies and validate:
+
+```sh
 npm ci
 npm run validate
 ```
 
-Use Node **24**. If you do not use nvm, install Node 24 LTS and verify `node --version`. On macOS with Homebrew:
+For a fresh Mac with Homebrew, install the tools first (this is already done on Jun's Mac):
 
 ```sh
-brew install awscli aws-sam-cli
-aws --version
-sam --version
+brew install node@24 awscli aws-sam-cli
 ```
 
 See the official [AWS CLI installation](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) and [SAM installation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) if Homebrew is unavailable. Docker is **not required** for these bundled Node artifacts. Node 24 is an [AWS Lambda supported runtime](https://docs.aws.amazon.com/lambda/latest/dg/lambda-nodejs.html).
 
-Authenticate using your AWS account's normal method. For an IAM Identity Center/SSO account:
+**Resolved setup issue:** `aws --version` initially failed with `No module named 'cryptography'`. Upgrading the old Homebrew AWS CLI from `2.24.23` to `2.39.6` repaired its Python dependency mismatch. Both the version check and AWS authentication succeeded afterward. If the same error occurs on an older Homebrew installation:
+
+```sh
+brew upgrade awscli
+aws --version
+aws sts get-caller-identity --profile default --region us-east-1
+```
+
+On another machine without working credentials, authenticate using that account's normal method. For IAM Identity Center/SSO, an alternative setup is:
 
 ```sh
 aws configure sso --profile home-hq
@@ -53,7 +84,7 @@ export AWS_REGION=us-east-1
 aws sts get-caller-identity
 ```
 
-If your personal account uses IAM access keys instead of SSO, use `aws configure --profile home-hq`, then the same two exports and identity check. Use an IAM identity, not root access keys. Never put AWS keys in this repository, `.env`, or Vercel. Keep the same profile/region for every command. Re-export them when opening a new terminal.
+If that account uses IAM access keys instead of SSO, use `aws configure --profile home-hq`, then the same two exports and identity check. These alternative setup commands are unnecessary for Jun's already-working `default` profile. Use an IAM identity, not root access keys. Never put AWS keys in this repository, `.env`, or Vercel. Keep the same profile/region for every deployment command. Re-export them when opening a new terminal.
 
 Your deployment identity needs CloudFormation/SAM deployment permissions, IAM role creation and PassRole, and permission to manage Lambda, API Gateway v2, DynamoDB, S3, EventBridge rules, CloudWatch Logs, and SSM parameters. An existing personal-account administrator role can perform the initial deployment. The generated Lambda runtime roles are scoped to this stack's table/bucket/parameter.
 
