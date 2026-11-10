@@ -65,10 +65,7 @@ export function useDashboard() {
     async function refresh() {
       if (pending || cancelled) return;
       clearTimeout(timer);
-      if (document.hidden) {
-        timer = setTimeout(refresh, dashboardPollMs);
-        return;
-      }
+      if (document.hidden) return;
       pending = true;
       controller = new AbortController();
       const deadline = setTimeout(() => controller?.abort(), 15000);
@@ -141,12 +138,13 @@ export function useClock() {
     let timer: ReturnType<typeof setTimeout>;
     const tick = () => {
       setNow(new Date());
-      timer = setTimeout(tick, 60000 - (Date.now() % 60000));
+      if (!document.hidden)
+        timer = setTimeout(tick, 60000 - (Date.now() % 60000));
     };
     tick();
     const resume = () => {
       clearTimeout(timer);
-      tick();
+      if (!document.hidden) tick();
     };
     document.addEventListener("visibilitychange", resume);
     return () => {

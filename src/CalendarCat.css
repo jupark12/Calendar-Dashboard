@@ -388,14 +388,18 @@
 .cat-day .cat-art {
   pointer-events: all;
   cursor: pointer;
-  filter: drop-shadow(0 0 0 transparent);
   transition: filter 300ms ease-in-out;
   outline: none;
 }
-.cat-day .cat-art:hover,
-.cat-day .cat-art:focus {
+.cat-day .cat-art:focus-visible {
   filter: drop-shadow(0 0 2px #ffdfac) drop-shadow(0 0 4px #ffe283)
     drop-shadow(0 0 5px #ffd469);
+}
+@media (hover: hover) {
+  .cat-day .cat-art:hover {
+    filter: drop-shadow(0 0 2px #ffdfac) drop-shadow(0 0 4px #ffe283)
+      drop-shadow(0 0 5px #ffd469);
+  }
 }
 .cat-day .cat-art:focus-visible {
   outline: none;

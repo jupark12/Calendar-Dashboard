@@ -2,19 +2,29 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./data";
 import type { FaithState } from "../shared/faith";
 
-export function useFaith() {
+export function useFaith({
+  enabled = true,
+  refreshMode = "poll",
+  pollMs = 30000,
+}: {
+  enabled?: boolean;
+  refreshMode?: "once" | "poll";
+  pollMs?: number;
+} = {}) {
   const [data, setData] = useState<FaithState | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const generation = useRef(0);
   const writing = useRef(false);
   const mounted = useRef(true);
+  const loaded = useRef(false);
   const refresh = useCallback(async () => {
     if (writing.current) return;
     const request = ++generation.current;
     try {
       const next = await api("/faith");
       if (mounted.current && request === generation.current) {
+        loaded.current = true;
         setData(next as FaithState);
         setError("");
       }
@@ -24,22 +34,27 @@ export function useFaith() {
     }
   }, []);
   useEffect(() => {
+    if (!enabled) return;
     mounted.current = true;
-    void refresh();
+    if (refreshMode !== "once" || !loaded.current) void refresh();
     const resume = () => {
       if (!document.hidden) void refresh();
     };
-    const timer = setInterval(resume, 30000);
-    document.addEventListener("visibilitychange", resume);
-    window.addEventListener("online", resume);
+    const timer = refreshMode === "poll" ? setInterval(resume, pollMs) : null;
+    if (refreshMode === "poll") {
+      document.addEventListener("visibilitychange", resume);
+      window.addEventListener("online", resume);
+    }
     return () => {
       mounted.current = false;
       generation.current++;
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", resume);
-      window.removeEventListener("online", resume);
+      if (timer !== null) clearInterval(timer);
+      if (refreshMode === "poll") {
+        document.removeEventListener("visibilitychange", resume);
+        window.removeEventListener("online", resume);
+      }
     };
-  }, [refresh]);
+  }, [enabled, refreshMode, pollMs, refresh]);
   async function act<T>(
     request: () => Promise<T>,
     update?: (state: FaithState, response: T) => FaithState,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { CalendarEvent, Settings } from "../shared/model";
 import {
   addDays,
@@ -56,15 +56,31 @@ export function Calendar({ data, now }: { data: DashboardData; now: Date }) {
   const visibleDays = Array.from({ length: count }, (_, i) =>
     addDays(start, i),
   ).filter((day) => view !== "month" || day.slice(0, 7) === first.slice(0, 7));
+  const eventsByDay = useMemo(() => {
+    const result = new Map<string, CalendarEvent[]>();
+    for (let i = 0; i < count; i++) {
+      const day = addDays(start, i);
+      result.set(
+        day,
+        data.events.filter((event) =>
+          eventOnDay(event, day, data.settings.timezone),
+        ),
+      );
+    }
+    return result;
+  }, [count, data.events, data.settings.timezone, start]);
   const openDays = visibleDays.filter(
-    (day) =>
-      !data.events.some((event) =>
-        eventOnDay(event, day, data.settings.timezone),
-      ),
+    (day) => !eventsByDay.get(day)?.length,
   ).length;
   const availability =
     view === "today"
-      ? dayAvailability(start, data.events, now, today, data.settings.timezone)
+      ? dayAvailability(
+          start,
+          eventsByDay.get(start) ?? [],
+          now,
+          today,
+          data.settings.timezone,
+        )
       : `${openDays} ${openDays === 1 ? "day" : "days"} with no plans`;
   return (
     <div className="calendar">
@@ -147,9 +163,7 @@ export function Calendar({ data, now }: { data: DashboardData; now: Date }) {
         >
           {Array.from({ length: count }, (_, i) => {
             const day = addDays(start, i);
-            const events = data.events.filter((e) =>
-              eventOnDay(e, day, data.settings.timezone),
-            );
+            const events = eventsByDay.get(day) ?? [];
             const max = view === "month" ? 1 : view === "week" ? 3 : 6;
             const page =
               view === "today"
@@ -244,9 +258,8 @@ function dayAvailability(
     return hour * 60 + minute;
   };
   const current = day === today ? minutes(localTime(now, timezone)) : 0;
-  const relevant = events.filter((event) => eventOnDay(event, day, timezone));
-  if (relevant.some((event) => event.allDay)) return "All day is booked";
-  const intervals = relevant
+  if (events.some((event) => event.allDay)) return "All day is booked";
+  const intervals = events
     .map((event) => ({
       start:
         dateKey(event.start, timezone) < day

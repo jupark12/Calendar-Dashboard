@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { api, type DashboardData } from "./data";
 import { useFaith } from "./useFaith";
 import { addDays, dateKey } from "../shared/time";
@@ -84,6 +84,15 @@ const formatDay = (day: string) =>
     day: "numeric",
     timeZone: "UTC",
   });
+type GardenReward = {
+  id: string;
+  person: Grower;
+  xp: number;
+  title: string;
+  detail: string;
+  special: boolean;
+};
+
 type DialogMode = "log" | "settings" | null;
 export function FaithTracker({
   dashboard,
@@ -108,6 +117,19 @@ export function FaithTracker({
     prayer: 5,
     version: 0,
   });
+  const [reward, setReward] = useState<GardenReward | null>(null);
+  useEffect(() => {
+    if (!reward) return;
+    const timer = window.setTimeout(() => setReward(null), 5200);
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setReward(null);
+    };
+    window.addEventListener("keydown", dismiss);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("keydown", dismiss);
+    };
+  }, [reward]);
   const [notice, setNotice] = useState("");
   const [undo, setUndo] = useState<{
     entry: FaithEntry;
@@ -123,7 +145,7 @@ export function FaithTracker({
   const entries = data?.entries ?? [];
   const sorted = [...entries].sort(
     (a, b) =>
-      b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)
+      b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
   );
   const from = period === "week" ? faithWeekStart(today) : "0000";
   const scores = {
@@ -132,9 +154,9 @@ export function FaithTracker({
   };
   const combined = growers.reduce(
     (n, p) => n + faithStats(entries, p, "0000", today).xp,
-    0
+    0,
   );
-  const target = (Math.floor(combined / 500) + 1) * 500;
+  const target = combined < 250 ? 250 : (Math.floor(combined / 500) + 1) * 500;
   function openLog(p: Grower = "jun") {
     setPerson(p);
     setKind("reading");
@@ -153,15 +175,59 @@ export function FaithTracker({
         })) as FaithEntry;
         return saved;
       },
-      (state, entry) => ({ ...state, entries: [...state.entries, entry] })
+      (state, entry) => ({ ...state, entries: [...state.entries, entry] }),
     );
     if (ok) {
       // The response is authoritative; refresh picks up other growers' changes too.
       const entry = saved;
       setNotice(
-        `${growerNames[input.person]} planted a seed! +${faithXP({ ...input, id: "" })} XP`
+        `${growerNames[input.person]} planted a seed! +${faithXP({ ...input, id: "" })} XP`,
       );
-      if (entry) setUndo({ entry, restore: false });
+      if (entry) {
+        setUndo({ entry, restore: false });
+        const xp = faithXP(entry);
+        const before = faithStats(entries, entry.person, "0000", today).xp;
+        const counted = entry.date <= today;
+        const level = Math.floor((before + (counted ? xp : 0)) / 100) + 1;
+        const levelUp = level > Math.floor(before / 100) + 1;
+        const daily = faithStats(entries, entry.person, today, today);
+        const dailyDone = (stats: typeof daily) =>
+          !!data &&
+          stats.reading >= data.goals.reading &&
+          stats.prayer >= data.goals.prayer;
+        const questsComplete =
+          entry.date === today &&
+          !dailyDone(daily) &&
+          dailyDone({
+            ...daily,
+            [entry.kind]: daily[entry.kind] + entry.amount,
+          });
+        const bloom =
+          counted &&
+          ((combined < 250 && combined + xp >= 250) ||
+            Math.floor((combined + xp) / 500) > Math.floor(combined / 500));
+        setReward({
+          id: entry.id,
+          person: entry.person,
+          xp,
+          title: bloom
+            ? "Your garden is blooming!"
+            : levelUp
+              ? `Level ${level} unlocked!`
+              : questsComplete
+                ? "Daily goals complete!"
+                : "A little faith. A little growth.",
+          detail: [
+            `${growerNames[entry.person]} ${entry.kind === "reading" ? "made time for the Word" : "made room for prayer"}.`,
+            bloom && "A new garden milestone reached.",
+            levelUp && `You’re now level ${level}.`,
+            questsComplete && "Both of today’s goals, done!",
+          ]
+            .filter(Boolean)
+            .join(" "),
+          special: bloom || levelUp || questsComplete,
+        });
+      }
       setModal(null);
       void refresh();
     }
@@ -172,9 +238,10 @@ export function FaithTracker({
       (state) => ({
         ...state,
         entries: state.entries.filter((e) => e.id !== entry.id),
-      })
+      }),
     );
     if (ok) {
+      setReward(null);
       setNotice("Entry removed.");
       setUndo({ entry, restore: true });
       void refresh();
@@ -201,11 +268,11 @@ export function FaithTracker({
           JSON.stringify(
             { ...data, exportedAt: new Date().toISOString() },
             null,
-            2
+            2,
           ),
         ],
-        { type: "application/json" }
-      )
+        { type: "application/json" },
+      ),
     );
     const a = document.createElement("a");
     a.href = url;
@@ -256,7 +323,52 @@ export function FaithTracker({
     );
   }
   return (
-    <div className="faith-screen">
+    <div className={`faith-screen ${tab === "garden" ? "garden-view" : ""}`}>
+      {reward && (
+        <div
+          className={`garden-reward ${reward.person} ${reward.special ? "special" : ""}`}
+          key={reward.id}
+        >
+          <div className="reward-particles" aria-hidden="true">
+            {Array.from({ length: reward.special ? 36 : 22 }, (_, i) => (
+              <i
+                key={i}
+                style={
+                  {
+                    "--angle": `${i * 137.5}deg`,
+                    "--distance": `${160 + (i % 5) * 36}px`,
+                    "--delay": `${(i % 6) * 45}ms`,
+                    "--petal-color": [
+                      "#9bb977",
+                      "#baa0d2",
+                      "#e6bb59",
+                      "#e9ad9b",
+                    ][i % 4],
+                  } as CSSProperties
+                }
+              />
+            ))}
+          </div>
+          <div className="reward-card" role="status" aria-atomic="true">
+            <button
+              className="reward-dismiss"
+              aria-label="Dismiss celebration"
+              onClick={() => setReward(null)}
+            >
+              ×
+            </button>
+            <div className="reward-emblem">
+              <Icon name={reward.special ? "trophy" : "sprout"} />
+            </div>
+            <div className="reward-xp">
+              +{reward.xp}
+              <span>XP</span>
+            </div>
+            <h2>{reward.title}</h2>
+            <p>{reward.detail}</p>
+          </div>
+        </div>
+      )}
       <header className="header">
         <a className="brand" href="/">
           <span className="brand-icon">⌂</span>Home HQ
@@ -299,15 +411,23 @@ export function FaithTracker({
         <section className="intro">
           <div>
             <div className="eyebrow">
-              <Icon name="sprout" /> JUN VS. SOOBIN · BIBLE & PRAYER
+              <Icon name="sprout" /> JUN & SOOBIN · BIBLE & PRAYER
             </div>
             <h1>
-              Grow in faith.
-              <br />
-              Grow <em>together.</em>
+              {tab === "garden" ? (
+                <>
+                  Your little <em>garden.</em>
+                </>
+              ) : (
+                <>
+                  Grow in faith.
+                  <br />
+                  Grow <em>together.</em>
+                </>
+              )}
               <span className="title-spark">✳</span>
             </h1>
-            <p>A little friendly competition. A lot of time with God.</p>
+            <p>Small moments with God. Something beautiful growing.</p>
           </div>
           <div className="verse-card">
             <span className="verse-star">✦</span>
@@ -364,12 +484,56 @@ export function FaithTracker({
             )}
             {tab === "garden" && (
               <>
+                <section className="together-card">
+                  <div className="garden-art">
+                    <Garden xp={combined} />
+                  </div>
+                  <div className="together-copy">
+                    <div className="eyebrow">GROWING TOGETHER</div>
+                    <h2>
+                      {combined < 250
+                        ? "Every seed is a beginning."
+                        : combined < 500
+                          ? "Your first flowers are here."
+                          : "Look how far you’ve grown."}
+                    </h2>
+                    <p>
+                      {combined
+                        ? `${combined} XP planted together. Keep showing up, one day at a time.`
+                        : "Plant your first seeds. Every chapter and prayer helps your shared garden grow."}
+                    </p>
+                    <div
+                      className="shared-track"
+                      role="progressbar"
+                      aria-label="Shared garden progress"
+                      aria-valuenow={combined}
+                      aria-valuemin={0}
+                      aria-valuemax={target}
+                    >
+                      <span
+                        style={{ width: `${(combined / target) * 100}%` }}
+                      />
+                    </div>
+                    <div className="shared-label">
+                      <span>
+                        {combined} / {target} shared XP
+                      </span>
+                      <span>
+                        {combined < 250
+                          ? "First bloom at 250 XP"
+                          : combined < 500
+                            ? "Purple bloom at 500 XP"
+                            : `Garden milestone ${Math.floor(combined / 500) + 1}`}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="shared-medallion">
+                    <Icon name="heart" />
+                  </div>
+                </section>
                 <section className="section-heading">
                   <div>
-                    <h2>
-                      Your friendly face-off{" "}
-                      <span className="tiny-pill">2 GROWERS</span>
-                    </h2>
+                    <h2>A little growth, every day</h2>
                     <p>
                       {period === "week"
                         ? `${formatDay(faithWeekStart(today))} – ${formatDay(addDays(faithWeekStart(today), 6))} · A new week to bloom`
@@ -411,9 +575,12 @@ export function FaithTracker({
                           <div>
                             <h3 className="person-name">{growerNames[p]}</h3>
                             <div className="person-tag">
-                              {p === "jun"
-                                ? "A little more rooted"
-                                : "A little more in bloom"}
+                              Level {lv} ·{" "}
+                              {lv < 3
+                                ? "Seedling"
+                                : lv < 6
+                                  ? "Taking root"
+                                  : "In bloom"}
                             </div>
                           </div>
                           <span className="streak-pill">
@@ -445,14 +612,6 @@ export function FaithTracker({
                         </div>
                         <div className="level-row">
                           <div className="level-label">
-                            <span>
-                              LEVEL {lv} ·{" "}
-                              {lv < 3
-                                ? "SEEDLING"
-                                : lv < 6
-                                  ? "TAKING ROOT"
-                                  : "IN BLOOM"}
-                            </span>
                             <span>
                               {100 - (all.xp % 100)} XP to level {lv + 1}
                             </span>
@@ -516,45 +675,13 @@ export function FaithTracker({
                             disabled={unavailable}
                             onClick={() => openLog(p)}
                           >
-                            Log a different amount or add a note ↗
+                            Custom entry ↗
                           </button>
                         </div>
                       </article>
                     );
                   })}
                 </div>
-                <section className="together-card">
-                  <div className="garden-art">
-                    <Garden xp={combined} />
-                  </div>
-                  <div className="together-copy">
-                    <div className="eyebrow">THE BEST PART? YOU BOTH WIN.</div>
-                    <h2>Two hearts. One growing garden.</h2>
-                    <p>
-                      {combined
-                        ? `You’ve earned ${combined} XP together. Keep nurturing your garden, one small moment at a time.`
-                        : "Plant your first seeds. Every chapter and prayer helps your shared garden grow."}
-                    </p>
-                    <div className="shared-track">
-                      <span
-                        style={{ width: `${(combined / target) * 100}%` }}
-                      />
-                    </div>
-                    <div className="shared-label">
-                      <span>
-                        {combined} / {target} shared XP
-                      </span>
-                      <span>
-                        {combined < 500
-                          ? "First bloom at 500 XP"
-                          : `Garden milestone ${Math.floor(combined / 500) + 1}`}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="shared-medallion">
-                    <Icon name="heart" />
-                  </div>
-                </section>
                 <div className="bottom-grid">
                   <section className="panel daily-panel">
                     <div className="panel-title">
@@ -602,18 +729,6 @@ export function FaithTracker({
                       <Icon name="heart" />
                       Show up, start small. Every moment counts.
                     </div>
-                  </section>
-                  <section className="panel recent-panel">
-                    <div className="panel-title">
-                      <h2>Fresh from the garden</h2>
-                      <button
-                        className="text-button"
-                        onClick={() => setTab("history")}
-                      >
-                        View all ↗
-                      </button>
-                    </div>
-                    {activity(sorted.slice(0, 3))}
                   </section>
                 </div>
               </>
@@ -739,9 +854,9 @@ export function FaithTracker({
                     sorted.filter(
                       (e) =>
                         (filter === "all" || e.person === filter) &&
-                        (kindFilter === "all" || e.kind === kindFilter)
+                        (kindFilter === "all" || e.kind === kindFilter),
                     ),
-                    true
+                    true,
                   )}
                 </div>
               </section>
@@ -876,7 +991,7 @@ export function FaithTracker({
                 const ok = await act(
                   () =>
                     api("/faith/goals", goals, "PUT") as Promise<FaithGoals>,
-                  (s, next) => ({ ...s, goals: next })
+                  (s, next) => ({ ...s, goals: next }),
                 );
                 if (ok) {
                   setModal(null);

@@ -66,7 +66,8 @@ export function Dashboard({
   const [brief, setBrief] = useState(false);
   const [waking, setWaking] = useState(false);
   const morningCat = useMorningCatMessage(now, data.settings.timezone);
-  const { data: faith } = useFaith();
+  const night = now.getTime() >= manualDayUntil;
+  const { data: faith } = useFaith({ enabled: !night, refreshMode: "once" });
   useEffect(() => {
     if (!waking) return;
     // Let the cat wake and the night screen brighten before revealing the day.
@@ -87,7 +88,6 @@ export function Dashboard({
   const catMessage = today.endsWith("-02-22")
     ? "Happy Birthday Soobin!"
     : morningCat.message;
-  const night = now.getTime() >= manualDayUntil;
   const tomorrow = data.events
     .filter((e) => eventOnDay(e, addDays(today, 1), data.settings.timezone))
     .sort((a, b) => a.start.localeCompare(b.start))[0];
