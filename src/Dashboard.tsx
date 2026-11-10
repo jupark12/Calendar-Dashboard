@@ -16,6 +16,43 @@ import { WeatherCard } from "./DashboardWeather";
 import { Upcoming } from "./DashboardUpcoming";
 import { faithStreak, growers, growerNames } from "../shared/faith";
 import { useFaith } from "./useFaith";
+
+function Carnation({ className }: { className: string }) {
+  return (
+    <svg className={className} viewBox="0 0 80 100" aria-hidden="true">
+      <path
+        d="M40 91 C39 72 42 59 40 45 M40 72 C29 68 23 64 19 57 M41 65 C52 61 57 56 61 51"
+        fill="none"
+        stroke="#718977"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path
+        d="M39 73 C27 62 17 66 17 57 C29 56 36 62 39 73 Z M41 66 C51 54 62 58 63 49 C52 49 44 55 41 66 Z"
+        fill="#78937b"
+        opacity=".8"
+      />
+      <g fill="currentColor" stroke="#ad8790" strokeWidth=".7">
+        <path d="M40 45 C22 51 16 37 22 26 L19 22 L24 20 L23 16 L29 17 L30 12 L35 16 L40 10 L45 16 L50 12 L52 18 L58 16 L57 21 L63 23 L59 27 C65 41 55 52 40 45 Z" />
+        <path
+          d="M40 45 C30 45 25 37 29 29 L27 26 L32 25 L32 21 L37 24 L40 20 L44 24 L49 21 L49 26 L54 27 L51 30 C55 38 49 45 40 45 Z"
+          fill="none"
+        />
+        <path
+          d="M31 32 Q35 27 40 32 Q45 27 49 32 M34 39 Q40 35 46 39"
+          fill="none"
+        />
+      </g>
+      <path
+        d="M34 46 Q40 53 46 46"
+        fill="none"
+        stroke="#718977"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
 export function Dashboard({
   data,
   now,
@@ -59,14 +96,79 @@ export function Dashboard({
   if (night)
     return (
       <main className="night-screen">
+        <Carnation className="carnation carnation-pink night-flower-left" />
+        <Carnation className="carnation carnation-white night-flower-right" />
+        <Carnation className="carnation carnation-white night-flower-upper-left" />
+        <Carnation className="carnation carnation-pink night-flower-upper-right" />
+        <Carnation className="carnation carnation-pink night-flower-mid-left" />
         <div className="night-top">
-          <span aria-hidden="true">⌂</span>
-          <a href="/faith">Bible & Prayer ↗</a>
-          <span>
-            {status === "offline"
-              ? "Offline · last known information"
-              : "Resting until you need me"}
-          </span>
+          <svg
+            className="night-eucalyptus"
+            viewBox="0 0 1200 150"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <defs>
+              <path
+                id="eucalyptus-leaf"
+                d="M0 0 C 13 -18 31 -21 42 -8 C 30 5 13 10 0 0 Z"
+              />
+              <g
+                id="eucalyptus-sprig"
+                fill="none"
+                stroke="#667f6d"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              >
+                <path d="M0 0 C 42 19 80 42 145 100" />
+                <path d="M31 15 L25 49 M52 27 L72 5 M75 43 L65 75 M96 61 L122 35 M116 78 L105 109" />
+                <g fill="#718e79" stroke="none" opacity=".78">
+                  <use
+                    href="#eucalyptus-leaf"
+                    transform="translate(25 49) rotate(-88) scale(.76)"
+                  />
+                  <use
+                    href="#eucalyptus-leaf"
+                    transform="translate(72 5) rotate(-32) scale(.72)"
+                  />
+                  <use
+                    href="#eucalyptus-leaf"
+                    transform="translate(65 75) rotate(-86) scale(.82)"
+                  />
+                  <use
+                    href="#eucalyptus-leaf"
+                    transform="translate(122 35) rotate(-29) scale(.78)"
+                  />
+                  <use
+                    href="#eucalyptus-leaf"
+                    transform="translate(105 109) rotate(-83) scale(.68)"
+                  />
+                  <use
+                    href="#eucalyptus-leaf"
+                    transform="translate(143 99) rotate(38) scale(.68)"
+                  />
+                </g>
+              </g>
+            </defs>
+            <use
+              href="#eucalyptus-sprig"
+              transform="translate(0 -8) rotate(3)"
+            />
+            <use
+              href="#eucalyptus-sprig"
+              transform="translate(270 6) rotate(-10) scale(.75)"
+              opacity=".7"
+            />
+            <use
+              href="#eucalyptus-sprig"
+              transform="translate(1200 -8) scale(-1 1) rotate(3)"
+            />
+            <use
+              href="#eucalyptus-sprig"
+              transform="translate(930 6) scale(-.75 .75) rotate(-10)"
+              opacity=".7"
+            />
+          </svg>
         </div>
         <div className="night-clock">
           {format(now, data.settings.timezone, {
@@ -128,6 +230,11 @@ export function Dashboard({
   const todos = data.items.filter((i) => i.list === "todo" && !i.completed);
   return (
     <main className="dashboard">
+      <Carnation className="carnation carnation-pink day-flower-left" />
+      <Carnation className="carnation carnation-white day-flower-right" />
+      <Carnation className="carnation carnation-white day-flower-upper-left" />
+      <Carnation className="carnation carnation-pink day-flower-mid-right" />
+      <Carnation className="carnation carnation-white day-flower-lower-right" />
       <header className="dashboard-header">
         <div className="brand" aria-hidden="true">
           <span className="brand-icon">⌂</span>
