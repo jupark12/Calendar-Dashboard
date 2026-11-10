@@ -7,6 +7,7 @@ import {
   eventOnDay,
   eventTime,
   isUpcoming,
+  localTime,
 } from "../shared/time";
 import type { DashboardData } from "./data";
 import { format, dayName } from "./dashboardFormat";
@@ -52,11 +53,21 @@ export function Calendar({ data, now }: { data: DashboardData; now: Date }) {
   const inRange =
     start >= data.calendarRange.start &&
     addDays(start, count - 1) <= data.calendarRange.end;
+  const visibleDays = Array.from({ length: count }, (_, i) => addDays(start, i)).filter(
+    (day) => view !== "month" || day.slice(0, 7) === first.slice(0, 7),
+  );
+  const openDays = visibleDays.filter(
+    (day) => !data.events.some((event) => eventOnDay(event, day, data.settings.timezone)),
+  ).length;
+  const availability =
+    view === "today"
+      ? dayAvailability(start, data.events, now, today, data.settings.timezone)
+      : `${openDays} ${openDays === 1 ? "day" : "days"} with no plans`;
   return (
     <section className="calendar panel">
       <div className="calendar-toolbar">
         <div>
-          <p className="eyebrow">A LITTLE PLANNING, MORE LIVING</p>
+          <p className="eyebrow">{availability}</p>
           <h2>
             {view === "month"
               ? dayName(first, { month: "long" })
@@ -215,6 +226,49 @@ export function Calendar({ data, now }: { data: DashboardData; now: Date }) {
       </div>
     </section>
   );
+}
+function dayAvailability(
+  day: string,
+  events: CalendarEvent[],
+  now: Date,
+  today: string,
+  timezone: string,
+): string {
+  const minutes = (value: string) => {
+    const [hour, minute] = value.split(":").map(Number);
+    return hour * 60 + minute;
+  };
+  const current = day === today ? minutes(localTime(now, timezone)) : 0;
+  const relevant = events.filter((event) => eventOnDay(event, day, timezone));
+  if (relevant.some((event) => event.allDay)) return "All day is booked";
+  const intervals = relevant
+    .map((event) => ({
+      start: dateKey(event.start, timezone) < day ? 0 : minutes(localTime(new Date(event.start), timezone)),
+      end: dateKey(event.end, timezone) > day
+        ? 1440
+        : minutes(localTime(new Date(event.end), timezone)),
+    }))
+    .sort((a, b) => a.start - b.start);
+  const formatTime = (minute: number) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "UTC",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(Date.UTC(2020, 0, 1, 0, minute)));
+  let freeFrom = current;
+  let currentlyBooked = false;
+  for (const interval of intervals) {
+    if (interval.end <= freeFrom) continue;
+    if (interval.start > freeFrom) {
+      if (currentlyBooked) return `Free after ${formatTime(freeFrom)}`;
+      return `Free until ${formatTime(interval.start)}`;
+    }
+    currentlyBooked = true;
+    freeFrom = interval.end;
+  }
+  return freeFrom >= 1440 ? "Booked for the rest of the day" :
+    currentlyBooked ? `Free after ${formatTime(freeFrom)}` :
+    "Day is open";
 }
 function EventPill({
   event,
