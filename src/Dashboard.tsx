@@ -26,6 +26,9 @@ export function Dashboard({
   const [manualDayUntil, setManualDayUntil] = useState(0);
   const [brief, setBrief] = useState(false);
   const today = dateKey(now, data.settings.timezone);
+  const catMessage = today.endsWith("-02-22")
+    ? "Happy Birthday Soobin!"
+    : undefined;
   const night =
     nightActive(data.settings, now, data.weather) &&
     now.getTime() >= manualDayUntil;
@@ -155,7 +158,7 @@ export function Dashboard({
         <a href="/manage">Manage ↗</a>
       </div>
       <div className={`dashboard-body ${brief ? "show-brief" : ""}`}>
-        <CalendarCat />
+        <CalendarCat message={catMessage} />
         <Calendar data={data} now={now} />
         <aside>
           <WeatherCard data={data} now={now} />

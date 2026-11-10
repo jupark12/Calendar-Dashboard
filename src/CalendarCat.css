@@ -23,6 +23,52 @@
   width: 100%;
   height: 100%;
 }
+/* Keep the entire bubble inside the walking track, even at either edge. */
+.cat-day.cat-speaking {
+  height: 150px;
+}
+.cat-day.cat-speaking .cat-traveler {
+  position: relative;
+  width: calc(100% - 156px);
+  padding-top: 50px;
+}
+.cat-day.cat-speaking .cat-art {
+  margin-left: 52px;
+}
+.cat-speech {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  width: 156px;
+  padding: 8px 12px;
+  border: 1px solid var(--cat-dark);
+  border-radius: 14px;
+  background: #fff4de;
+  color: var(--cat-ink);
+  font: 600 13px/1.25 system-ui, sans-serif;
+  text-align: center;
+}
+.cat-speech::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: calc(50% - 4px);
+  width: 8px;
+  height: 8px;
+  border-right: 1px solid var(--cat-dark);
+  border-bottom: 1px solid var(--cat-dark);
+  background: #fff4de;
+  transform: rotate(45deg);
+}
+.cat-sleeping .cat-speech {
+  top: -52px;
+  left: auto;
+  right: 0;
+}
+.cat-speaking .cat-snores {
+  display: none;
+}
 .cat-art {
   display: block;
   width: 52px;

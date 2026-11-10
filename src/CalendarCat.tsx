@@ -3,7 +3,13 @@ import "./CalendarCat.css";
 import { useCatParty } from "./CatParty";
 
 /** An animated SVG companion; the daytime cat triggers a celebration. */
-export function CalendarCat({ sleeping = false }: { sleeping?: boolean }) {
+export function CalendarCat({
+  sleeping = false,
+  message,
+}: {
+  sleeping?: boolean;
+  message?: string;
+}) {
   const { celebrate, confetti } = useCatParty();
   const root = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(true);
@@ -32,9 +38,9 @@ export function CalendarCat({ sleeping = false }: { sleeping?: boolean }) {
       {confetti}
       <div
         ref={root}
-        className={`cat-stage ${sleeping ? "cat-sleeping" : "cat-day"}`}
+        className={`cat-stage ${sleeping ? "cat-sleeping" : "cat-day"}${message ? " cat-speaking" : ""}`}
         data-paused={paused}
-        aria-hidden={sleeping ? true : undefined}
+        aria-hidden={sleeping && !message ? true : undefined}
       >
         {sleeping && (
           <div className="cat-snores">
@@ -44,12 +50,14 @@ export function CalendarCat({ sleeping = false }: { sleeping?: boolean }) {
           </div>
         )}
         <div className="cat-traveler">
+          {message && !sleeping && <div className="cat-speech">{message}</div>}
           <svg
             className="cat-art"
             viewBox="0 0 120 100"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             role={sleeping ? undefined : "button"}
+            aria-hidden={sleeping ? true : undefined}
             aria-label={sleeping ? undefined : "Rain confetti and cats"}
             tabIndex={sleeping ? undefined : 0}
             focusable={!sleeping}
