@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Item, Settings } from "../shared/model";
-import { eventTime, weatherIcon } from "../shared/time";
+import { eventTime } from "../shared/time";
 import { api, type DashboardData } from "./data";
+import { WeatherIcon } from "./WeatherIcon";
 type Props = { data: DashboardData; refresh: () => void; status: string };
 const blank = {
   list: "grocery" as const,
@@ -184,7 +185,7 @@ export function Manage({ data, refresh, status }: Props) {
                         })}
                       </span>
                       <span>
-                        {weatherIcon(h.code)} {Math.round(h.temperature)}°F
+                        <WeatherIcon code={h.code} /> {Math.round(h.temperature)}°F
                       </span>
                       <span>{h.rain}% precipitation chance</span>
                     </div>

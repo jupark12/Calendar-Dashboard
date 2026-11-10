@@ -83,20 +83,3 @@ export function weatherLabel(code: number): string {
   if (code <= 86) return "Snow showers";
   return "Thunderstorms";
 }
-export function weatherIcon(code: number): string {
-  return code === 0
-    ? "☀"
-    : code <= 3
-      ? "☁"
-      : code <= 48
-        ? "≋"
-        : code <= 67
-          ? "☂"
-          : code <= 77
-            ? "❄"
-            : code <= 82
-              ? "☂"
-              : code <= 86
-                ? "❄"
-                : "ϟ";
-}

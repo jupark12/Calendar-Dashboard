@@ -8,10 +8,10 @@ import {
   eventTime,
   isUpcoming,
   nightActive,
-  weatherIcon,
   weatherLabel,
 } from "../shared/time";
 import type { DashboardData } from "./data";
+import { WeatherIcon } from "./WeatherIcon";
 const format = (
   date: Date,
   timezone: string,
@@ -290,7 +290,7 @@ function WeatherCard({ data, now }: { data: DashboardData; now: Date }) {
                   ? "Today"
                   : dayName(d.date, { weekday: "short" })}
               </span>
-              <span className="weather-symbol">{weatherIcon(d.code)}</span>
+              <span className="weather-symbol"><WeatherIcon code={d.code} /></span>
               <strong>{Math.round(d.high)}°</strong>
               <span>{Math.round(d.low)}°</span>
             </div>
@@ -315,7 +315,7 @@ function WeatherCard({ data, now }: { data: DashboardData; now: Date }) {
               className="hero-weather"
               aria-label={weatherLabel(weather.current.code)}
             >
-              {weatherIcon(weather.current.code)}
+              <WeatherIcon code={weather.current.code} />
             </div>
           </div>
           <div className="hourly-forecast">
@@ -331,7 +331,7 @@ function WeatherCard({ data, now }: { data: DashboardData; now: Date }) {
                           hour: "numeric",
                         })}
                   </small>
-                  <span className="weather-symbol">{weatherIcon(h.code)}</span>
+                  <span className="weather-symbol"><WeatherIcon code={h.code} /></span>
                   <strong>{Math.round(h.temperature)}°</strong>
                   <small className="rain-chance">{h.rain}%</small>
                 </div>
@@ -489,7 +489,7 @@ export function Dashboard({
             <div>
               <p className="eyebrow">OUTSIDE</p>
               <h2>
-                {weatherIcon(data.weather.current.code)}{" "}
+                <WeatherIcon code={data.weather.current.code} />{" "}
                 {Math.round(data.weather.current.temperature)}°
               </h2>
               <p>{weatherLabel(data.weather.current.code)}</p>
