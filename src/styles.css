@@ -865,41 +865,15 @@ form {
 .night-screen-waking .night-flower-mid-left {
   animation: flower-awaken 1250ms ease-out both;
 }
-.dashboard-reveal {
-  animation: dashboard-dawn 1600ms cubic-bezier(.22, .65, .2, 1) both;
-}
-body:has(.dashboard-reveal) {
-  animation: dawn-backdrop 1600ms ease-out both;
-}
-@keyframes dawn-backdrop {
-  from { background-color: #101613; }
-  to { background-color: #f3f2ed; }
-}
 @keyframes night-dawn {
   to { opacity: 1; }
 }
 @keyframes flower-awaken {
   to { filter: brightness(1.8); }
 }
-@keyframes dashboard-dawn {
-  from {
-    opacity: .85;
-    clip-path: circle(0% at 50% 48%);
-    filter: brightness(1.06);
-  }
-  to {
-    opacity: 1;
-    clip-path: circle(85% at 50% 48%);
-    filter: brightness(1);
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   .night-screen-waking::after,
-  .night-screen-waking .carnation,
-  .dashboard-reveal {
-    animation: none;
-  }
-  body:has(.dashboard-reveal) {
+  .night-screen-waking .carnation {
     animation: none;
   }
 }

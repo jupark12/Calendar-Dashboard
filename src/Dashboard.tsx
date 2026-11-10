@@ -70,7 +70,7 @@ export function Dashboard({
   const { data: faith } = useFaith({ enabled: !night, refreshMode: "once" });
   useEffect(() => {
     if (!waking) return;
-    // Let the cat wake and the night screen brighten before revealing the day.
+    // Let the cat wake and the night screen glow before showing the dashboard.
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const timer = window.setTimeout(() => {
       startTransition(() => {
@@ -228,7 +228,7 @@ export function Dashboard({
   );
   const todos = data.items.filter((i) => i.list === "todo" && !i.completed);
   return (
-    <main className={manualDayUntil ? "dashboard dashboard-reveal" : "dashboard"}>
+    <main className="dashboard">
       <Carnation className="carnation carnation-pink day-flower-left" />
       <Carnation className="carnation carnation-white day-flower-right" />
       <Carnation className="carnation carnation-white day-flower-upper-left" />
