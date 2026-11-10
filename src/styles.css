@@ -739,6 +739,7 @@ form {
 .night-screen {
   height: 100vh;
   min-height: 500px;
+  font-size: 16.8px;
   background: #101613;
   color: #899488;
   display: flex;
@@ -755,19 +756,19 @@ form {
   right: 35px;
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 13.2px;
   letter-spacing: 1px;
   color: #536254;
 }
 .night-clock {
-  font-size: clamp(75px, 11vw, 180px);
+  font-size: clamp(90px, 16.2vw, 500px);
   font-weight: 250;
-  letter-spacing: -7px;
+  letter-spacing: -8.4px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .night-date {
-  font-size: 20px;
+  font-size: 24px;
   color: #637663;
 }
 .night-details {
@@ -776,16 +777,17 @@ form {
   margin-top: 30px;
 }
 .night-details h2 {
-  font-size: 22px;
+  font-size: 26.4px;
   margin: 9px 0;
 }
 .night-details p {
-  font-size: 12px;
+  font-size: 14.4px;
 }
 .night-wake {
   border: 0;
   margin-top: 20px;
-  font-size: 11px;
+  padding: 9.6px 15.6px;
+  font-size: 13.2px;
   color: #687666;
 }
 .night-alert {
@@ -1454,16 +1456,16 @@ form {
     flex-wrap: wrap;
   }
   .night-top {
-    font-size: 9px;
+    font-size: 10.8px;
     left: 20px;
     right: 20px;
   }
   .night-clock {
-    font-size: 72px;
-    letter-spacing: -4px;
+    font-size: 86.4px;
+    letter-spacing: -4.8px;
   }
   .night-date {
-    font-size: 16px;
+    font-size: 19.2px;
   }
   .night-details {
     flex-direction: column;
@@ -1473,7 +1475,7 @@ form {
     gap: 15px;
   }
   .night-details h2 {
-    font-size: 19px;
+    font-size: 22.8px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
