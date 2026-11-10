@@ -846,6 +846,63 @@ form {
   padding: 35px;
   gap: 20px;
 }
+.night-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle at 50% 48%, rgba(247, 230, 193, .5), rgba(202, 177, 139, .18) 38%, transparent 72%);
+}
+.night-screen-waking::after {
+  animation: night-dawn 1250ms ease-in-out forwards;
+}
+.night-screen-waking .night-flower-left,
+.night-screen-waking .night-flower-right,
+.night-screen-waking .night-flower-upper-left,
+.night-screen-waking .night-flower-upper-right,
+.night-screen-waking .night-flower-mid-left {
+  animation: flower-awaken 1250ms ease-out both;
+}
+.dashboard-reveal {
+  animation: dashboard-dawn 1600ms cubic-bezier(.22, .65, .2, 1) both;
+}
+body:has(.dashboard-reveal) {
+  animation: dawn-backdrop 1600ms ease-out both;
+}
+@keyframes dawn-backdrop {
+  from { background-color: #101613; }
+  to { background-color: #f3f2ed; }
+}
+@keyframes night-dawn {
+  to { opacity: 1; }
+}
+@keyframes flower-awaken {
+  to { filter: brightness(1.8); }
+}
+@keyframes dashboard-dawn {
+  from {
+    opacity: .85;
+    clip-path: circle(0% at 50% 48%);
+    filter: brightness(1.06);
+  }
+  to {
+    opacity: 1;
+    clip-path: circle(85% at 50% 48%);
+    filter: brightness(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .night-screen-waking::after,
+  .night-screen-waking .carnation,
+  .dashboard-reveal {
+    animation: none;
+  }
+  body:has(.dashboard-reveal) {
+    animation: none;
+  }
+}
 .carnation {
   position: absolute;
   width: 64px;

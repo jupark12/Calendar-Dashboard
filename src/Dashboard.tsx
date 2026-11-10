@@ -69,16 +69,15 @@ export function Dashboard({
   const { data: faith } = useFaith();
   useEffect(() => {
     if (!waking) return;
-    // Paint the awake cat before starting the heavier dashboard render.
-    let frame = requestAnimationFrame(() => {
-      frame = requestAnimationFrame(() => {
-        startTransition(() => {
-          setManualDayUntil(Date.now() + 15 * 60000);
-          setWaking(false);
-        });
+    // Let the cat wake and the night screen brighten before revealing the day.
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = window.setTimeout(() => {
+      startTransition(() => {
+        setManualDayUntil(Date.now() + 15 * 60000);
+        setWaking(false);
       });
-    });
-    return () => cancelAnimationFrame(frame);
+    }, reducedMotion ? 0 : 1250);
+    return () => window.clearTimeout(timer);
   }, [waking]);
   const today = dateKey(now, data.settings.timezone);
   const dayOfWeek = new Date(`${today}T12:00:00Z`).getUTCDay();
@@ -95,7 +94,7 @@ export function Dashboard({
   const stale = Object.values(data.sync).some((s) => s.error);
   if (night)
     return (
-      <main className="night-screen">
+      <main className={`night-screen${waking ? " night-screen-waking" : ""}`}>
         <Carnation className="carnation carnation-pink night-flower-left" />
         <Carnation className="carnation carnation-white night-flower-right" />
         <Carnation className="carnation carnation-white night-flower-upper-left" />
@@ -229,7 +228,7 @@ export function Dashboard({
   );
   const todos = data.items.filter((i) => i.list === "todo" && !i.completed);
   return (
-    <main className="dashboard">
+    <main className={manualDayUntil ? "dashboard dashboard-reveal" : "dashboard"}>
       <Carnation className="carnation carnation-pink day-flower-left" />
       <Carnation className="carnation carnation-white day-flower-right" />
       <Carnation className="carnation carnation-white day-flower-upper-left" />
