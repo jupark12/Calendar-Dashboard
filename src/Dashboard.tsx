@@ -82,7 +82,7 @@ export function Dashboard({
   const today = dateKey(now, data.settings.timezone);
   const dayOfWeek = new Date(`${today}T12:00:00Z`).getUTCDay();
   const weekDays = Array.from({ length: 7 }, (_, index) =>
-    addDays(today, index - dayOfWeek),
+    addDays(today, index - dayOfWeek)
   );
   const catMessage = today.endsWith("-02-22")
     ? "Happy Birthday Soobin!"
@@ -224,7 +224,7 @@ export function Dashboard({
       </main>
     );
   const groceries = data.items.filter(
-    (i) => i.list === "grocery" && !i.completed,
+    (i) => i.list === "grocery" && !i.completed
   );
   const todos = data.items.filter((i) => i.list === "todo" && !i.completed);
   return (
@@ -235,9 +235,11 @@ export function Dashboard({
       <Carnation className="carnation carnation-pink day-flower-mid-right" />
       <Carnation className="carnation carnation-white day-flower-lower-right" />
       <header className="dashboard-header">
-        <div className="brand" aria-hidden="true">
-          <span className="brand-icon">⌂</span>
-        </div>
+        <a className="brand" href="/">
+          <div className="brand" aria-hidden="true">
+            <span className="brand-icon">⌂</span>
+          </div>
+        </a>
         <a
           className="header-faith"
           href="/faith"
@@ -250,7 +252,7 @@ export function Dashboard({
             const activeDays = new Set(
               faith?.entries
                 .filter((entry) => entry.person === person)
-                .map((entry) => entry.date) ?? [],
+                .map((entry) => entry.date) ?? []
             );
             return (
               <span className="header-streak-card" key={person}>
@@ -305,7 +307,7 @@ export function Dashboard({
                       <span>
                         {new Date(`${day}T12:00:00Z`).toLocaleDateString(
                           "en-US",
-                          { weekday: "narrow", timeZone: "UTC" },
+                          { weekday: "narrow", timeZone: "UTC" }
                         )}
                       </span>
                       <i
@@ -415,7 +417,7 @@ export function Dashboard({
                 format(now, data.settings.timezone, {
                   hour: "2-digit",
                   hourCycle: "h23",
-                }),
+                })
               ) >= 18;
             return (
               <div

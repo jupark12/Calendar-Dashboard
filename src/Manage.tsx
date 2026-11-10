@@ -9,7 +9,7 @@ export function Manage({ data, refresh, status }: Props) {
   const [role, setRole] = useState<string | null>(data.demo ? "admin" : null);
   const [password, setPassword] = useState("");
   const [tab, setTab] = useState(
-    location.hash === "#alerts" ? "weather" : "lists",
+    location.hash === "#alerts" ? "weather" : "lists"
   );
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -39,7 +39,7 @@ export function Manage({ data, refresh, status }: Props) {
     <main className="manage">
       <header className="manage-header">
         <a className="brand" href="/">
-          <span className="brand-icon">⌂</span>Home HQ
+          <span className="brand-icon">⌂</span>
         </a>
         <a href="/faith">Bible & Prayer ↗</a>
         <a href="/">Back to display ↗</a>
@@ -195,7 +195,7 @@ export function Manage({ data, refresh, status }: Props) {
                 .filter((e) =>
                   e.allDay
                     ? e.end >= new Date().toISOString().slice(0, 10)
-                    : Date.parse(e.end) > Date.now(),
+                    : Date.parse(e.end) > Date.now()
                 )
                 .slice(0, 30)
                 .map((e) => (
