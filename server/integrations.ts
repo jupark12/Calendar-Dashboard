@@ -192,7 +192,7 @@ type Cache<T> = { data: T; state: SyncState; next: number; failures: number };
 export class Integrations {
   private busy = false;
   constructor(
-    private store: Store,
+    private store: Pick<Store, "get" | "set" | "settings" | "items">,
     private demo: boolean,
     private feeds: Record<string, string>,
     private userAgent: string,

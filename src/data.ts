@@ -32,6 +32,7 @@ export async function api(
   }
 }
 const cacheKey = "home-hq-last-snapshot-v1";
+const dashboardPollMs = 60 * 60 * 1000;
 function readCache(): DashboardData | null {
   try {
     const raw = sessionStorage.getItem(cacheKey);
@@ -65,7 +66,7 @@ export function useDashboard() {
       if (pending || cancelled) return;
       clearTimeout(timer);
       if (document.hidden) {
-        timer = setTimeout(refresh, 30000);
+        timer = setTimeout(refresh, dashboardPollMs);
         return;
       }
       pending = true;
@@ -112,7 +113,9 @@ export function useDashboard() {
         if (!cancelled)
           timer = setTimeout(
             refresh,
-            Math.min(300000, 30000 * 2 ** Math.min(failures, 4)),
+            failures
+              ? Math.min(300000, 30000 * 2 ** Math.min(failures, 4))
+              : dashboardPollMs,
           );
       }
     }

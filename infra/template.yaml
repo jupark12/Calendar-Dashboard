@@ -1,0 +1,160 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Home HQ - Vercel frontend with AWS serverless backend
+Parameters:
+  AppOrigin:
+    Type: String
+    Description: Exact Vercel production origin, HTTPS, no trailing slash
+    AllowedPattern: "https://[a-zA-Z0-9.-]+"
+  ConfigParameter:
+    Type: String
+    Default: /home-hq/production/config
+    AllowedPattern: "/[a-zA-Z0-9_/.-]+"
+    Description: Existing SSM Standard SecureString parameter (name only, never the secret)
+Globals:
+  Function:
+    Runtime: nodejs24.x
+    Architectures: [arm64]
+    CodeUri: ../dist-aws/
+    MemorySize: 512
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref HouseholdTable
+        CACHE_BUCKET: !Ref CacheBucket
+        CONFIG_PARAMETER: !Ref ConfigParameter
+        APP_ORIGIN: !Ref AppOrigin
+Resources:
+  HouseholdTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+        - { AttributeName: sk, KeyType: RANGE }
+      TimeToLiveSpecification: { AttributeName: expires, Enabled: true }
+      SSESpecification: { SSEEnabled: true }
+  CacheBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules: [{ ObjectOwnership: BucketOwnerEnforced }]
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+  CacheBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CacheBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource: [!GetAtt CacheBucket.Arn, !Sub "${CacheBucket.Arn}/*"]
+            Condition:
+              Bool: { "aws:SecureTransport": "false" }
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 10
+        ThrottlingRateLimit: 5
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: api.handler
+      LoggingConfig:
+        LogGroup: !Ref ApiLogs
+      Timeout: 20
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref HouseholdTable }
+        - Statement:
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${ConfigParameter}"
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub "${CacheBucket.Arn}/snapshot.json.gz"
+            # Missing snapshot must return 404 (rather than S3's masked 403).
+            - Effect: Allow
+              Action: s3:ListBucket
+              Resource: !GetAtt CacheBucket.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/{proxy+}
+            Method: ANY
+            PayloadFormatVersion: "2.0"
+  SyncFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: sync.handler
+      LoggingConfig:
+        LogGroup: !Ref SyncLogs
+      Timeout: 120
+      MemorySize: 1024
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref HouseholdTable }
+        - Statement:
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${ConfigParameter}"
+            - Effect: Allow
+              Action: [s3:GetObject, s3:PutObject]
+              Resource:
+                [
+                  !Sub "${CacheBucket.Arn}/cache.json.gz",
+                  !Sub "${CacheBucket.Arn}/snapshot.json.gz",
+                ]
+            - Effect: Allow
+              Action: s3:ListBucket
+              Resource: !GetAtt CacheBucket.Arn
+      Events:
+        Refresh:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+            Enabled: true
+            RetryPolicy:
+              MaximumRetryAttempts: 1
+              MaximumEventAgeInSeconds: 180
+  ApiLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-api"
+      RetentionInDays: 7
+  SyncLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-sync"
+      RetentionInDays: 7
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  TableName:
+    Value: !Ref HouseholdTable
+  CacheBucketName:
+    Value: !Ref CacheBucket
+  SyncFunctionName:
+    Value: !Ref SyncFunction
+  ApiFunctionName:
+    Value: !Ref ApiFunction

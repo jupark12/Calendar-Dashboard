@@ -1,6 +1,6 @@
 # Home HQ
 
-A quiet, always-on household dashboard for a landscape Android frame. React 18, TypeScript, Vite and Tailwind on the frontend; Express and SQLite on one small server. No Google login is needed on the frame.
+A quiet, always-on household dashboard for a landscape Android frame. React 18, TypeScript, Vite and Tailwind on the frontend; deploy on Vercel with AWS Lambda, DynamoDB and S3, or run locally with Express and SQLite. No Google login is needed on the frame.
 
 ## Start locally
 
@@ -25,7 +25,7 @@ The demo has no authentication and binds to loopback by default. Do not publish 
 
 - Month, week and paginated daily agenda; distinct calendar colors; all-day/multi-day events; recurring events, exceptions and cancellations; upcoming countdowns and celebration reminders.
 - Current weather, feels-like, highs/lows, sunrise/sunset, a compact hourly strip, full next-24-hour detail in management, seven-day forecast, probabilistic rain notices and official NWS alerts.
-- Grocery and to-do lists with add/edit/complete/delete, category, priority and due date. SQLite is the source of truth. Updates appear on other devices within 30 seconds; version checks reject conflicting edits.
+- Grocery and to-do lists with add/edit/complete/delete, category, priority and due date. DynamoDB is the cloud source of truth; local hosting uses SQLite. Updates appear on other devices at the next hourly poll or when the page is refreshed; version checks reject conflicting edits.
 - Independent trash/recycling RRULE schedules, biweekly anchors, skipped dates and holiday replacements.
 - Scheduled night mode, optional sunrise/sunset, and expiring manual overrides. The night screen shows tomorrow’s first event, weather, alerts and tomorrow’s pickups. CSS changes appearance, **not physical backlight brightness**.
 - Display-only authentication; a separately authenticated responsive `/manage` interface. Loading, errors, partial integration failures, offline status and last-known data.
@@ -47,7 +47,7 @@ DEMO_MODE=false
 DATABASE_PATH=./data/home-hq.sqlite
 APP_ORIGIN=http://localhost:3000
 ADMIN_PASSWORD=replace-with-a-unique-random-value-at-least-20-characters
-DISPLAY_PASSWORD=replace-with-a-different-random-value-at-least-20-characters
+DISPLAY_PASSWORD=replace-with-a-different-value-at-least-12-characters
 COOKIE_SECURE=false
 CALENDAR_FEEDS={"person1":"https://calendar.google.com/calendar/ical/REPLACE/private-REPLACE/basic.ics","person2":"https://calendar.google.com/calendar/ical/REPLACE/private-REPLACE/basic.ics","home":"https://calendar.google.com/calendar/ical/REPLACE/private-REPLACE/basic.ics","birthdays":"https://calendar.google.com/calendar/ical/REPLACE/private-REPLACE/basic.ics"}
 WEATHER_USER_AGENT=HomeHQ/1.0 (contact: your-real-email@example.com)
@@ -82,7 +82,9 @@ Night mode defaults to 10 PM–6:30 AM. Equal start/end times disable clock-base
 
 ## Deploy independently of your MacBook
 
-Recommended: a single small always-on Linux host with Docker Compose and a persistent disk. This can be an existing mini PC/NAS or a low-cost VPS of your choice. Avoid ephemeral free hosting that sleeps or discards local SQLite files. One process and one disk are sufficient for a two-person household; do not horizontally scale this SQLite deployment.
+**Recommended hosted setup: Vercel + AWS.** Follow the complete [deployment guide](docs/AWS-VERCEL.md) for account setup, encrypted secret upload, migration of your existing calendar names/settings/lists, SAM deployment, Vercel configuration, verification, costs, and recovery. Your Mac can be switched off after deployment. AWS billing depends on account allowances; this is not a guaranteed permanently free service.
+
+The sections below describe the **alternative Docker/SQLite setup**. Use a single small always-on Linux host with Docker Compose and a persistent disk. This can be an existing mini PC/NAS or a low-cost VPS of your choice. Avoid ephemeral free hosting that sleeps or discards local SQLite files. One process and one disk are sufficient for a two-person household; do not horizontally scale this SQLite deployment.
 
 The included Dockerfile builds the frontend, removes development dependencies and runs as the unprivileged `node` user. `compose.yaml` adds Caddy for HTTPS and a named `household` volume for SQLite. There is no published application port; only Caddy is exposed. Docker restart policies and bounded logs are included.
 
@@ -109,7 +111,7 @@ docker compose logs --tail=80 app caddy
 
 6. Visit `https://home.example.com/manage` on a phone/computer and sign in with the admin password. Open `https://home.example.com/` on the frame and sign in **once with the display password**. No Google sign-in occurs on the frame.
 
-The display cookie lasts 90 days; management sessions last 12 hours. Both are HttpOnly, SameSite=Strict and Secure in production. Expired sessions return to the access screen. Do not sign into the frame as admin. Anyone with physical access to a paired display can read the household information; choose its placement accordingly. Passwords are shared household access, not individual user accounts, and there is no password-reset email flow.
+The display cookie lasts one year; management sessions last 12 hours. Both are HttpOnly, SameSite=Strict and Secure in production. Expired sessions return to the access screen. Do not sign into the frame as admin. Anyone with physical access to a paired display can read the household information; choose its placement accordingly. Passwords are shared household access, not individual user accounts, and there is no password-reset email flow.
 
 Production live startup refuses insecure cookie/origin configuration or weak/equal passwords. Mutating API calls require the configured exact Origin and JSON content type. Login attempts are rate-limited. The app does not trust forwarded IP headers, so the Caddy proxy shares one login limit; this conservative choice is adequate for two household members. Access tokens are random, stored only as SHA-256 hashes in SQLite, and are not embedded in JavaScript or URLs.
 
@@ -150,7 +152,7 @@ The PF1508’s actual browser/WebView version is not known and was not available
 5. Reboot the frame and verify automatic launch, Wi-Fi reconnection and cookie retention. If the launcher has no boot/start-URL feature, configuring or replacing it is a separate device setup step.
 6. Test at the actual resolution and normal viewing distance. Use the compact view switch if needed. Prefer the Week or Day view for longer event titles.
 
-A suspended tab resumes synchronization when visible. A single non-overlapping browser request runs about every 30 seconds, with a 15-second timeout and exponential backoff to five minutes; reconnect/visibility events request an immediate refresh. ETags suppress unchanged payloads. One shared clock updates on minute boundaries. Effects clean up timers, listeners and aborted requests. There are no animations, webfonts, image downloads, heavy icon packages or continual per-widget timers.
+A suspended tab resumes synchronization when visible. A single non-overlapping browser request runs about every hour, with a 15-second timeout and exponential retry backoff to five minutes; reconnect/visibility events request an immediate refresh. ETags suppress unchanged payloads. One shared clock updates on minute boundaries. Effects clean up timers, listeners and aborted requests. There are no animations, webfonts, image downloads, heavy icon packages or continual per-widget timers.
 
 The backend has one synchronization scheduler and per-provider retry backoff. Last successful provider results survive restarts in SQLite. A single bounded last-known snapshot in `sessionStorage` lets an already-open display reload through brief outages; it is cleared on an authentication rejection. **It is not a source of truth for edits**, and closing the browser can remove it. The production service worker caches only the app shell/static assets, never authenticated API responses. Offline startup requires a prior successful production load and browser service-worker support. An in-memory display continues if browser storage is disabled. Already-displayed private information remains readable while offline; a remote session revocation is recognized on the next successful connection.
 
@@ -166,10 +168,17 @@ server/database.ts   SQLite schema and persistence
 server/integrations.ts  Google ICS, Open-Meteo, NWS, cache/backoff
 server/scheduling.ts Pickup recurrence and exceptions
 server/demo.ts       Explicit example data only
+aws/                 Lambda API, DynamoDB sessions/data, scheduled S3 cache sync
+infra/template.yaml  AWS SAM infrastructure
+scripts/             AWS build, secret upload, data import, Vercel configuration
+vercel.json          Static hosting, API proxy, SPA fallback and security headers
+docs/AWS-VERCEL.md   Complete cloud deployment runbook
 public/sw.js         Optional offline static shell
 tests/              Date/recurrence tests and real HTTP API tests
 Dockerfile           Production image
 compose.yaml         Persistent app + HTTPS reverse proxy
 ```
+
+Cloud storage/scheduling differences are documented in the [AWS guide](docs/AWS-VERCEL.md). The SQLite backup/session commands above apply only to local/Docker hosting.
 
 See [verification notes](docs/VERIFICATION.md) for tests actually performed and remaining deployment/device checks. No real household secrets or live Google feed are included. Docker hosting, DNS, private calendar configuration and the physical PF1508 still require your environment.

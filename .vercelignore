@@ -1,0 +1,10 @@
+.env
+.env.*
+data/
+*.sqlite
+*.sqlite-*
+.aws-sam/
+dist-aws/
+samconfig.toml
+**/samconfig.toml
+.git/

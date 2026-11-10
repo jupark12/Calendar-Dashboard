@@ -14,11 +14,11 @@ const displayPassword = process.env.DISPLAY_PASSWORD || "";
 if (
   !demo &&
   (adminPassword.length < 20 ||
-    displayPassword.length < 20 ||
+    displayPassword.length < 12 ||
     adminPassword === displayPassword)
 )
   throw new Error(
-    "Configure distinct ADMIN_PASSWORD and DISPLAY_PASSWORD of at least 20 characters",
+    "Configure distinct passwords: ADMIN_PASSWORD at least 20 characters and DISPLAY_PASSWORD at least 12 characters",
   );
 if (!demo && !process.env.APP_ORIGIN) throw new Error("APP_ORIGIN is required");
 if (production && !demo && (!secure || !origin.startsWith("https://")))

@@ -13,4 +13,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run validate
+      - uses: aws-actions/setup-sam@v2
+      - run: sam validate --lint --template-file infra/template.yaml --region us-east-1
+        env:
+          AWS_EC2_METADATA_DISABLED: "true"
       - run: npm audit --omit=dev --audit-level=high

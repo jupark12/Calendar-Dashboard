@@ -124,7 +124,7 @@ export function createApp(
     attempts.delete(ip);
     store.db.prepare("DELETE FROM sessions WHERE expires<?").run(now);
     const token = randomBytes(32).toString("hex");
-    const seconds = input.role === "admin" ? 43200 : 90 * 86400;
+    const seconds = input.role === "admin" ? 43200 : 365 * 86400;
     store.db
       .prepare("INSERT INTO sessions VALUES(?,?,?)")
       .run(hash(token), input.role, now + seconds * 1000);

@@ -6,3 +6,10 @@ data
 .env.*
 *.log
 docs/*.png
+dist-aws
+.aws-sam
+.vercel
+samconfig.toml
+**/samconfig.toml
+*.sqlite
+*.sqlite-*
