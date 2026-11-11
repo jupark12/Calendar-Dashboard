@@ -4,12 +4,13 @@ import { api, type DashboardData } from "./data";
 import { WeatherIcon } from "./WeatherIcon";
 import { Lists } from "./ManageLists";
 import { SettingsForm } from "./ManageSettings";
+import { ManagePhotos } from "./ManagePhotos";
 type Props = { data: DashboardData; refresh: () => void; status: string };
 export function Manage({ data, refresh, status }: Props) {
   const [role, setRole] = useState<string | null>(data.demo ? "admin" : null);
   const [password, setPassword] = useState("");
   const [tab, setTab] = useState(
-    location.hash === "#alerts" ? "weather" : "lists"
+    location.hash === "#alerts" ? "weather" : "lists",
   );
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -108,6 +109,7 @@ export function Manage({ data, refresh, status }: Props) {
           <nav className="manage-tabs">
             {[
               ["lists", "Shared lists"],
+              ["photos", "Photos"],
               ["settings", "Home & calendars"],
               ["pickups", "Pickup schedules"],
               ["night", "Night mode"],
@@ -128,6 +130,8 @@ export function Manage({ data, refresh, status }: Props) {
           </nav>
           {tab === "lists" ? (
             <Lists data={data} act={act} busy={busy} />
+          ) : tab === "photos" ? (
+            <ManagePhotos act={act} busy={busy} />
           ) : tab === "weather" ? (
             <section className="panel settings-panel">
               <h2>Weather & connection</h2>
@@ -195,7 +199,7 @@ export function Manage({ data, refresh, status }: Props) {
                 .filter((e) =>
                   e.allDay
                     ? e.end >= new Date().toISOString().slice(0, 10)
-                    : Date.parse(e.end) > Date.now()
+                    : Date.parse(e.end) > Date.now(),
                 )
                 .slice(0, 30)
                 .map((e) => (

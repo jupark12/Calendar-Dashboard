@@ -1,6 +1,6 @@
 # Home HQ
 
-A quiet, always-on household dashboard for a landscape Android frame. React 18, TypeScript, Vite and Tailwind on the frontend; deploy on Vercel with AWS Lambda, DynamoDB and S3, or run locally with Express and SQLite. No Google login is needed on the frame.
+A quiet, always-on household dashboard for a landscape Android frame. React 18, TypeScript, Vite and Tailwind on the frontend; deploy on Vercel with AWS Lambda, DynamoDB and S3, or run locally with Express and SQLite. No Google login is needed on the frame. The main tile can switch between the calendar and a private family photo album.
 
 ## Start locally
 
@@ -160,7 +160,7 @@ The PF1508’s actual browser/WebView version is not known and was not available
 5. Reboot the frame and verify automatic launch, Wi-Fi reconnection and cookie retention. If the launcher has no boot/start-URL feature, configuring or replacing it is a separate device setup step.
 6. Test at the actual resolution and normal viewing distance. Use the compact view switch if needed. Prefer the Week or Day view for longer event titles.
 
-A suspended tab resumes synchronization when visible. A single non-overlapping browser request runs about every hour, with a 15-second timeout and exponential retry backoff to five minutes; reconnect/visibility events request an immediate refresh. ETags suppress unchanged payloads. One shared clock updates on minute boundaries. Effects clean up timers, listeners and aborted requests. There are no animations, webfonts, image downloads, heavy icon packages or continual per-widget timers.
+A suspended tab resumes synchronization when visible. A single non-overlapping browser request runs about every hour, with a 15-second timeout and exponential retry backoff to five minutes; reconnect/visibility events request an immediate refresh. ETags suppress unchanged payloads. One shared clock updates on minute boundaries. Effects clean up timers, listeners and aborted requests. The photo tile loads up to ten resized JPEGs, advances every ten seconds, and refreshes its album list every five minutes while open.
 
 The backend has one synchronization scheduler and per-provider retry backoff. Last successful provider results survive restarts in SQLite. A single bounded last-known snapshot in `sessionStorage` lets an already-open display reload through brief outages; it is cleared on an authentication rejection. **It is not a source of truth for edits**, and closing the browser can remove it. The production service worker caches only the app shell/static assets, never authenticated API responses. Offline startup requires a prior successful production load and browser service-worker support. An in-memory display continues if browser storage is disabled. Already-displayed private information remains readable while offline; a remote session revocation is recognized on the next successful connection.
 

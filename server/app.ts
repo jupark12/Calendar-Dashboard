@@ -1,8 +1,19 @@
 import { faithEntrySchema, faithGoalsSchema } from "../shared/faith";
 import express, { type ErrorRequestHandler } from "express";
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  randomBytes,
+  randomUUID,
+  timingSafeEqual,
+} from "node:crypto";
 import { z } from "zod";
 import { itemSchema, settingsSchema } from "../shared/model";
+import {
+  decodePhoto,
+  maxPhotos,
+  photoIdSchema,
+  photoUploadSchema,
+} from "../shared/photos";
 import { nextPickup, parseRule } from "./scheduling";
 import { dateKey } from "../shared/time";
 import type { Store } from "./database";
@@ -33,10 +44,11 @@ export function createApp(
     if (process.env.NODE_ENV === "production")
       res.set(
         "Content-Security-Policy",
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
       );
     next();
   });
+  app.use("/api/photos", express.json({ limit: "1mb" }));
   app.use("/api", express.json({ limit: "32kb" }));
   app.get("/healthz", (_req, res) => {
     store.db.prepare("SELECT 1").get();
@@ -179,6 +191,23 @@ export function createApp(
     }
     res.json(payload);
   });
+  app.get("/api/photos", (_req, res) => {
+    res.json({
+      photos: store
+        .photos()
+        .map(({ id }) => ({ id, url: `/api/photos/${id}` })),
+    });
+  });
+  app.get("/api/photos/:id", (req, res) => {
+    const id = photoIdSchema.parse(req.params.id);
+    const image = store.photo(id);
+    if (!image) return void res.status(404).json({ error: "Photo not found" });
+    res.set({
+      "Content-Type": "image/jpeg",
+      "Cache-Control": "private, no-store",
+    });
+    res.end(image);
+  });
   app.get("/api/faith", (_req, res) => {
     res.json({ entries: store.faithEntries(), goals: store.faithGoals() });
   });
@@ -190,12 +219,10 @@ export function createApp(
     }
     const entry = store.addFaith(input);
     if (!entry) {
-      res
-        .status(409)
-        .json({
-          error:
-            "This entry already exists with different details. Refresh before retrying.",
-        });
+      res.status(409).json({
+        error:
+          "This entry already exists with different details. Refresh before retrying.",
+      });
       return;
     }
     res.status(201).json(entry);
@@ -207,11 +234,9 @@ export function createApp(
   app.put("/api/faith/goals", (req, res) => {
     const goals = store.saveFaithGoals(faithGoalsSchema.parse(req.body));
     if (!goals) {
-      res
-        .status(409)
-        .json({
-          error: "Goals changed on another device. Refresh and try again.",
-        });
+      res.status(409).json({
+        error: "Goals changed on another device. Refresh and try again.",
+      });
       return;
     }
     res.json(goals);
@@ -222,6 +247,21 @@ export function createApp(
       return;
     }
     next();
+  });
+  app.post("/api/photos", (req, res) => {
+    const image = decodePhoto(photoUploadSchema.parse(req.body).data);
+    const id = randomUUID();
+    if (!store.addPhoto(id, image))
+      return void res
+        .status(409)
+        .json({ error: `The album holds up to ${maxPhotos} photos.` });
+    res.status(201).json({ id, url: `/api/photos/${id}` });
+  });
+  app.delete("/api/photos/:id", (req, res) => {
+    const id = photoIdSchema.parse(req.params.id);
+    if (!store.removePhoto(id))
+      return void res.status(404).json({ error: "Photo not found" });
+    res.json({ ok: true });
   });
   app.post("/api/items", (req, res) => {
     const item = store.add(itemSchema.parse(req.body));

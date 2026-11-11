@@ -67,6 +67,46 @@ test("authentication, role boundaries, CSRF, list conflicts, persistence, and se
       password: "admin-test-password-123456",
     });
     const ac = a.headers.get("set-cookie")!.split(";")[0];
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString("base64");
+    assert.equal(
+      (await request("/photos", "POST", { data: jpeg }, dc)).status,
+      403,
+    );
+    assert.equal(
+      (await request("/photos", "POST", { data: "bad" }, ac)).status,
+      400,
+    );
+    const uploaded = await request("/photos", "POST", { data: jpeg }, ac);
+    assert.equal(uploaded.status, 201);
+    const photo = await uploaded.json();
+    assert.equal((await request("/photos", "GET", undefined, dc)).status, 200);
+    const image = await request(`/photos/${photo.id}`, "GET", undefined, dc);
+    assert.equal(image.headers.get("content-type"), "image/jpeg");
+    assert.deepEqual(
+      Buffer.from(await image.arrayBuffer()),
+      Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+    );
+    assert.equal(
+      (await request(`/photos/${photo.id}`, "DELETE", {}, dc)).status,
+      403,
+    );
+    assert.equal(
+      (await request(`/photos/${photo.id}`, "DELETE", {}, ac)).status,
+      200,
+    );
+    assert.equal(
+      (await request(`/photos/${photo.id}`, "GET", undefined, dc)).status,
+      404,
+    );
+    for (let i = 0; i < 10; i++)
+      assert.equal(
+        (await request("/photos", "POST", { data: jpeg }, ac)).status,
+        201,
+      );
+    assert.equal(
+      (await request("/photos", "POST", { data: jpeg }, ac)).status,
+      409,
+    );
     assert.equal(
       (
         await request(

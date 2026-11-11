@@ -9,7 +9,7 @@ Frame / phone → Vercel HTTPS (React static files)
                     └─ /api/* proxy → API Gateway HTTP API → API Lambda
                                                               ├─ DynamoDB: settings, lists, sessions
                                                               ├─ SSM: encrypted private configuration
-                                                              └─ S3: sanitized integration snapshot
+                                                              └─ S3: sanitized integration snapshot + private photos
 EventBridge (every hour) → Sync Lambda → Google ICS / Open-Meteo / NWS
                                       └─ S3: private raw caches + snapshot
 ```
@@ -19,7 +19,7 @@ There is no EC2 server, container, load balancer, NAT gateway, VPC, or always-ru
 - **Vercel Hobby:** suitable for this personal household project; stay within its usage limits. [Hobby terms](https://vercel.com/docs/plans/hobby).
 - **DynamoDB:** this template provisions 5 read and 5 write capacity units, below the published 25/25 allowance if your other tables have not consumed it. On-demand requests do not use that provisioned-capacity allowance. [DynamoDB pricing](https://aws.amazon.com/dynamodb/pricing/).
 - **AWS is not guaranteed permanently free.** API Gateway, S3 requests/storage, Lambda, logs, transfer, deployment artifacts, and optional backups can cost money. Eligibility depends on account age, plan, credits, region, and other workloads. API Gateway advertises time-limited allowances and credits for newer accounts. [API Gateway pricing](https://aws.amazon.com/api-gateway/pricing/), [Lambda pricing](https://aws.amazon.com/lambda/pricing/), [S3 pricing](https://aws.amazon.com/s3/pricing/), [SSM pricing](https://aws.amazon.com/systems-manager/pricing/).
-- One continuously open frame polling every hour makes about **720 API calls per 30-day month**; scheduled sync runs about **720 times**. Additional devices add API calls. S3 snapshot reads are cached in each warm Lambda for 30 seconds. The API uses ETags and private/no-store headers; authenticated responses must not enter a shared CDN cache.
+- One continuously open frame polling every hour makes about **720 dashboard API calls per 30-day month**; scheduled sync runs about **720 times**. The photo tile adds an album-list request every five minutes and one private image request for each photo when opened or refreshed. Additional devices add API calls. S3 snapshot reads are cached in each warm Lambda for 30 seconds. The API uses ETags and private/no-store headers; authenticated responses must not enter a shared CDN cache.
 - Before deploying, create an AWS Billing **monthly cost budget** (for example $5) with email alerts at 50%, 80%, and 100%, and enable Free Tier usage alerts. Budgets and API throttles are alerts/traffic controls, **not hard spending caps**. Check actual Billing usage after the first day and week.
 
 ## 1. Prepare tools and AWS credentials
@@ -229,7 +229,7 @@ Do **not** rerun the data import for normal updates. If the API URL changes, rer
 
 To change calendar feeds/passwords, edit local `.env` and run `npm run aws:config -- --replace` in the correct account/region. Keep calendar IDs consistent with Home & calendars. No rebuild is required. Feed changes are detected on a subsequent sync and discard caches from the old configuration. Do not delete/reset feed URLs merely to redeploy.
 
-**Backups:** DynamoDB and S3 survive function redeployments, but durability is not protection from accidental edits. Before a significant change, create a DynamoDB on-demand backup in AWS Console → DynamoDB → Tables → this table → Backups, or enable point-in-time recovery if its extra cost is acceptable. Backups/PITR are not enabled by this low-cost template. Keep your original local SQLite database until cloud verification is complete; it becomes stale after you start editing in the cloud. The S3 cache can be rebuilt from providers and need not be backed up. Never publish raw table exports, S3 objects, or SQLite files.
+**Backups:** DynamoDB and S3 survive function redeployments, but durability is not protection from accidental edits. Before a significant change, create a DynamoDB on-demand backup in AWS Console → DynamoDB → Tables → this table → Backups, or enable point-in-time recovery if its extra cost is acceptable. Backups/PITR are not enabled by this low-cost template. Keep your original local SQLite database until cloud verification is complete; it becomes stale after you start editing in the cloud. Integration cache objects can be rebuilt, but family photos cannot; keep originals elsewhere or arrange a separate backup. Never publish raw table exports, S3 objects, or SQLite files.
 
 To restore, use DynamoDB's backup restore to a **new table**, then update both Lambda functions' `TABLE_NAME` to that restored table and adjust their IAM policies to its ARN. Incorporate the restored table into the CloudFormation template (or import it into the stack) before the next normal deploy so the change is not overwritten. Revoke restored sessions by rotating both passwords. A restore is a deliberate recovery operation; test it separately before relying on it.
 

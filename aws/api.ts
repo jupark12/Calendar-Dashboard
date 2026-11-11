@@ -1,11 +1,17 @@
 import { faithEntrySchema, faithGoalsSchema } from "../shared/faith";
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import type {
   APIGatewayProxyEventV2,
   APIGatewayProxyStructuredResultV2,
 } from "aws-lambda";
 import { z } from "zod";
 import { itemSchema, settingsSchema } from "../shared/model";
+import {
+  decodePhoto,
+  maxPhotos,
+  photoIdSchema,
+  photoUploadSchema,
+} from "../shared/photos";
 import { dateKey } from "../shared/time";
 import { nextPickup, parseRule } from "../server/scheduling";
 import { Integrations } from "../server/integrations";
@@ -20,13 +26,20 @@ import {
   type Published,
 } from "./model";
 import { DynamoRepository } from "./repository";
-import { required, secrets, readPublished } from "./storage";
+import {
+  required,
+  secrets,
+  readPublished,
+  s3Photos,
+  type PhotoStorage,
+} from "./storage";
 
 type Dependencies = {
   repo: Repository;
   secrets: () => Promise<Secrets>;
   published: () => Promise<Published | null>;
   origin: string;
+  photos?: PhotoStorage;
 };
 const cookie = (token: string, seconds: number) =>
   `hq_session=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${seconds}`;
@@ -73,7 +86,9 @@ export function createHandler(deps: Dependencies) {
         const raw = event.isBase64Encoded
           ? Buffer.from(event.body ?? "", "base64").toString("utf8")
           : (event.body ?? "");
-        if (Buffer.byteLength(raw) > 32768)
+        if (
+          Buffer.byteLength(raw) > (path === "/api/photos" ? 1_000_000 : 32768)
+        )
           return failure(413, "Request too large");
         body = JSON.parse(raw);
       }
@@ -139,6 +154,28 @@ export function createHandler(deps: Dependencies) {
       if (!role) return failure(401, "Please connect this device");
       // API writes remain unavailable until the explicit, resumable migration finishes.
       const settings = await deps.repo.settings();
+      const photos = deps.photos ?? s3Photos;
+      if (method === "GET" && path === "/api/photos") {
+        const ids = await photos.list();
+        return respond(200, {
+          photos: ids.map((id) => ({ id, url: `/api/photos/${id}` })),
+        });
+      }
+      const photoMatch = /^\/api\/photos\/([^/]+)$/.exec(path);
+      if (method === "GET" && photoMatch) {
+        const image = await photos.get(photoIdSchema.parse(photoMatch[1]));
+        if (!image) return failure(404, "Photo not found");
+        return {
+          statusCode: 200,
+          headers: {
+            "Content-Type": "image/jpeg",
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+          },
+          body: image.toString("base64"),
+          isBase64Encoded: true,
+        };
+      }
       if (method === "GET" && path === "/api/dashboard") {
         const [items, published] = await Promise.all([
           deps.repo.items(),
@@ -195,6 +232,23 @@ export function createHandler(deps: Dependencies) {
           await deps.repo.saveFaithGoals(faithGoalsSchema.parse(body)),
         );
       if (role !== "admin") return failure(403, "Management access required");
+      if (method === "POST" && path === "/api/photos") {
+        let image: Buffer;
+        try {
+          image = decodePhoto(photoUploadSchema.parse(body).data);
+        } catch {
+          return failure(400, "Upload a JPEG photo under 700 KB.");
+        }
+        const id = randomUUID();
+        if (!(await photos.add(id, image)))
+          return failure(409, `The album holds up to ${maxPhotos} photos.`);
+        return respond(201, { id, url: `/api/photos/${id}` });
+      }
+      if (method === "DELETE" && photoMatch) {
+        const id = photoIdSchema.parse(photoMatch[1]);
+        if (!(await photos.remove(id))) return failure(404, "Photo not found");
+        return respond(200, { ok: true });
+      }
       if (method === "POST" && path === "/api/items")
         return respond(201, await deps.repo.add(itemSchema.parse(body)));
       const match = /^\/api\/items\/([a-zA-Z0-9_-]{1,80})$/.exec(path);
@@ -259,4 +313,5 @@ export const handler = (event: APIGatewayProxyEventV2) =>
     secrets,
     published: readPublished,
     origin: required("APP_ORIGIN"),
+    photos: s3Photos,
   })(event);

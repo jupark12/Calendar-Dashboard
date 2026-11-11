@@ -92,6 +92,9 @@ Resources:
             - Effect: Allow
               Action: s3:GetObject
               Resource: !Sub "${CacheBucket.Arn}/snapshot.json.gz"
+            - Effect: Allow
+              Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+              Resource: !Sub "${CacheBucket.Arn}/photos/*"
             # Missing snapshot must return 404 (rather than S3's masked 403).
             - Effect: Allow
               Action: s3:ListBucket

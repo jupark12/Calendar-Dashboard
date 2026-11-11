@@ -16,6 +16,7 @@ import { WeatherCard } from "./DashboardWeather";
 import { Upcoming } from "./DashboardUpcoming";
 import { faithStreak, growers, growerNames } from "../shared/faith";
 import { useFaith } from "./useFaith";
+import { PhotoAlbum } from "./PhotoAlbum";
 
 function Carnation({ className }: { className: string }) {
   return (
@@ -64,6 +65,15 @@ export function Dashboard({
 }) {
   const [manualDayUntil, setManualDayUntil] = useState(0);
   const [brief, setBrief] = useState(false);
+  const [tile, setTile] = useState<"calendar" | "photos">(() => {
+    try {
+      return localStorage.getItem("home-hq-main-tile") === "photos"
+        ? "photos"
+        : "calendar";
+    } catch {
+      return "calendar";
+    }
+  });
   const [waking, setWaking] = useState(false);
   const [dismissedPickups, setDismissedPickups] = useState<Record<string, string>>(
     () => {
@@ -85,13 +95,18 @@ export function Dashboard({
   useEffect(() => {
     if (!waking) return;
     // Let the cat wake and the night screen glow before showing the dashboard.
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const timer = window.setTimeout(() => {
-      startTransition(() => {
-        setManualDayUntil(Date.now() + 15 * 60000);
-        setWaking(false);
-      });
-    }, reducedMotion ? 0 : 1250);
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    const timer = window.setTimeout(
+      () => {
+        startTransition(() => {
+          setManualDayUntil(Date.now() + 15 * 60000);
+          setWaking(false);
+        });
+      },
+      reducedMotion ? 0 : 1250
+    );
     return () => window.clearTimeout(timer);
   }, [waking]);
   const today = dateKey(now, data.settings.timezone);
@@ -292,6 +307,24 @@ export function Dashboard({
             <span className="brand-icon">⌂</span>
           </div>
         </a>
+        <div className="tile-toggle view-switch" aria-label="Main tile">
+          {(["calendar", "photos"] as const).map((choice) => (
+            <button
+              key={choice}
+              aria-pressed={tile === choice}
+              onClick={() => {
+                setTile(choice);
+                try {
+                  localStorage.setItem("home-hq-main-tile", choice);
+                } catch {
+                  /* Preference remains for this visit. */
+                }
+              }}
+            >
+              {choice === "calendar" ? "Calendar" : "Photos"}
+            </button>
+          ))}
+        </div>
         <a
           className="header-faith"
           href="/faith"
@@ -410,7 +443,7 @@ export function Dashboard({
       )}
       <div className="compact-switch view-switch">
         <button aria-pressed={!brief} onClick={() => setBrief(false)}>
-          Calendar
+          {tile === "calendar" ? "Calendar" : "Photos"}
         </button>
         <button aria-pressed={brief} onClick={() => setBrief(true)}>
           Weather & upcoming
@@ -419,8 +452,14 @@ export function Dashboard({
         <a href="/manage">Manage ↗</a>
       </div>
       <div className={`dashboard-body ${brief ? "show-brief" : ""}`}>
-        <CalendarCat message={catMessage} onActivate={morningCat.dismiss} />
-        <Calendar data={data} now={now} />
+        {tile === "calendar" ? (
+          <>
+            <CalendarCat message={catMessage} onActivate={morningCat.dismiss} />
+            <Calendar data={data} now={now} />
+          </>
+        ) : (
+          <PhotoAlbum />
+        )}
         <aside>
           <WeatherCard data={data} now={now} />
           <Upcoming data={data} now={now} />

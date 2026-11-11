@@ -2,10 +2,13 @@ import {
   S3Client,
   GetObjectCommand,
   PutObjectCommand,
+  ListObjectsV2Command,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { secretSchema, type Secrets, type Published } from "./model";
+import { maxPhotos } from "../shared/photos";
 const s3 = new S3Client({});
 const ssm = new SSMClient({});
 export function required(name: string) {
@@ -63,3 +66,70 @@ export async function readPublished() {
   published = { value, until: Date.now() + 30000 };
   return value;
 }
+const photoKey = (id: string) => `photos/${id}.jpg`;
+export const s3Photos = {
+  async list() {
+    const result = await s3.send(
+      new ListObjectsV2Command({
+        Bucket: required("CACHE_BUCKET"),
+        Prefix: "photos/",
+        MaxKeys: maxPhotos + 1,
+      }),
+    );
+    return (result.Contents ?? [])
+      .filter((object) => /^photos\/[\da-f-]{36}\.jpg$/.test(object.Key ?? ""))
+      .sort(
+        (a, b) =>
+          (a.LastModified?.getTime() ?? 0) - (b.LastModified?.getTime() ?? 0),
+      )
+      .map((object) => object.Key!.slice(7, -4));
+  },
+  async get(id: string) {
+    try {
+      const result = await s3.send(
+        new GetObjectCommand({
+          Bucket: required("CACHE_BUCKET"),
+          Key: photoKey(id),
+        }),
+      );
+      return Buffer.from(await result.Body!.transformToByteArray());
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.name === "NoSuchKey" || error.name === "NotFound")
+      )
+        return null;
+      throw error;
+    }
+  },
+  async add(id: string, image: Buffer) {
+    if ((await this.list()).length >= maxPhotos) return false;
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: required("CACHE_BUCKET"),
+        Key: photoKey(id),
+        Body: image,
+        ContentType: "image/jpeg",
+        ServerSideEncryption: "AES256",
+        CacheControl: "private, no-store",
+      }),
+    );
+    return true;
+  },
+  async remove(id: string) {
+    if (!(await this.get(id))) return false;
+    await s3.send(
+      new DeleteObjectCommand({
+        Bucket: required("CACHE_BUCKET"),
+        Key: photoKey(id),
+      }),
+    );
+    return true;
+  },
+};
+export type PhotoStorage = {
+  list(): Promise<string[]>;
+  get(id: string): Promise<Buffer | null>;
+  add(id: string, image: Buffer): Promise<boolean>;
+  remove(id: string): Promise<boolean>;
+};

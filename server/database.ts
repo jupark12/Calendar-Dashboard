@@ -22,6 +22,9 @@ export class Store {
     this.db.exec(
       "CREATE TABLE IF NOT EXISTS faith_entries(id TEXT PRIMARY KEY, body TEXT NOT NULL)",
     );
+    this.db.exec(
+      "CREATE TABLE IF NOT EXISTS photos(id TEXT PRIMARY KEY, image BLOB NOT NULL, created INTEGER NOT NULL)",
+    );
     if (!this.get("settings")) this.set("settings", defaultSettings);
   }
   get<T>(key: string): T | null {
@@ -94,6 +97,40 @@ export class Store {
   }
   removeFaith(id: string) {
     this.db.prepare("DELETE FROM faith_entries WHERE id=?").run(id);
+  }
+  photos() {
+    return this.db
+      .prepare("SELECT id FROM photos ORDER BY created, rowid")
+      .all() as { id: string }[];
+  }
+  photo(id: string) {
+    const row = this.db
+      .prepare("SELECT image FROM photos WHERE id=?")
+      .get(id) as { image: Uint8Array } | undefined;
+    return row ? Buffer.from(row.image) : null;
+  }
+  addPhoto(id: string, image: Buffer) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const count = this.db
+        .prepare("SELECT count(*) AS count FROM photos")
+        .get() as { count: number };
+      if (count.count >= 10) {
+        this.db.exec("ROLLBACK");
+        return false;
+      }
+      this.db
+        .prepare("INSERT INTO photos VALUES(?,?,?)")
+        .run(id, image, Date.now());
+      this.db.exec("COMMIT");
+      return true;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+  removePhoto(id: string) {
+    return this.db.prepare("DELETE FROM photos WHERE id=?").run(id).changes > 0;
   }
   saveFaithGoals(goals: FaithGoals): FaithGoals | null {
     this.db.exec("BEGIN IMMEDIATE");

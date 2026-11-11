@@ -36,6 +36,7 @@ function fixture() {
   const faith = new Map<string, FaithEntry>();
   let goals = { ...defaultFaithGoals };
   const sessions = new Map<string, Session>();
+  const photos = new Map<string, Buffer>();
   let attempts = 0;
   let published: Published | null = null;
   const repo: Repository = {
@@ -89,6 +90,16 @@ function fixture() {
     secrets: async () => config,
     published: async () => published,
     origin,
+    photos: {
+      list: async () => [...photos.keys()],
+      get: async (id: string) => photos.get(id) ?? null,
+      add: async (id: string, image: Buffer) => {
+        if (photos.size >= 10) return false;
+        photos.set(id, image);
+        return true;
+      },
+      remove: async (id: string) => photos.delete(id),
+    },
   };
   const handler = createHandler(deps);
   const request = (
@@ -119,6 +130,7 @@ function fixture() {
   return {
     repo,
     sessions,
+    photos,
     request,
     login,
     setPublished(value: Published) {
@@ -182,6 +194,46 @@ test("Lambda auth, same-origin boundary, expired sessions, logout, and password 
     200,
   );
   assert.equal(f.sessions.has(key), false);
+});
+test("Lambda photo access and private image responses", async () => {
+  const f = fixture();
+  const display = await f.login("display");
+  const admin = await f.login("admin");
+  const data = Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString("base64");
+  assert.equal(
+    (await f.request("/photos", "POST", { data }, display)).statusCode,
+    403,
+  );
+  const added = await f.request("/photos", "POST", { data }, admin);
+  assert.equal(added.statusCode, 201);
+  const { id } = JSON.parse(added.body!);
+  const listing = await f.request("/photos", "GET", undefined, display);
+  assert.equal(JSON.parse(listing.body!).photos.length, 1);
+  const image = await f.request(`/photos/${id}`, "GET", undefined, display);
+  assert.equal(image.statusCode, 200);
+  assert.equal(image.isBase64Encoded, true);
+  assert.equal(image.body, data);
+  assert.equal(
+    (await f.request(`/photos/${id}`, "DELETE", {}, display)).statusCode,
+    403,
+  );
+  assert.equal(
+    (await f.request(`/photos/${id}`, "DELETE", {}, admin)).statusCode,
+    200,
+  );
+  assert.equal(
+    (await f.request(`/photos/${id}`, "GET", undefined, display)).statusCode,
+    404,
+  );
+  for (let i = 0; i < 10; i++)
+    assert.equal(
+      (await f.request("/photos", "POST", { data }, admin)).statusCode,
+      201,
+    );
+  assert.equal(
+    (await f.request("/photos", "POST", { data }, admin)).statusCode,
+    409,
+  );
 });
 test("Lambda list/settings conflicts, validation and conditional dashboard responses", async () => {
   const f = fixture();
