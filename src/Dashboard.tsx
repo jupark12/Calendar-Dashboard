@@ -65,6 +65,20 @@ export function Dashboard({
   const [manualDayUntil, setManualDayUntil] = useState(0);
   const [brief, setBrief] = useState(false);
   const [waking, setWaking] = useState(false);
+  const [dismissedPickups, setDismissedPickups] = useState<Record<string, string>>(
+    () => {
+      try {
+        const saved = JSON.parse(
+          localStorage.getItem("home-hq-dismissed-pickups") ?? "{}"
+        );
+        return saved && typeof saved === "object" && !Array.isArray(saved)
+          ? saved
+          : {};
+      } catch {
+        return {};
+      }
+    }
+  );
   const morningCat = useMorningCatMessage(now, data.settings.timezone);
   const night = now.getTime() >= manualDayUntil;
   const { data: faith } = useFaith({ enabled: !night, refreshMode: "once" });
@@ -92,6 +106,20 @@ export function Dashboard({
     .filter((e) => eventOnDay(e, addDays(today, 1), data.settings.timezone))
     .sort((a, b) => a.start.localeCompare(b.start))[0];
   const stale = Object.values(data.sync).some((s) => s.error);
+  const tomorrowPickups = data.pickups.filter(
+    (pickup) =>
+      pickup.date === addDays(today, 1) &&
+      dismissedPickups[pickup.id] !== pickup.date
+  );
+  function dismissPickup(id: string, date: string) {
+    const next = { ...dismissedPickups, [id]: date };
+    setDismissedPickups(next);
+    try {
+      localStorage.setItem("home-hq-dismissed-pickups", JSON.stringify(next));
+    } catch {
+      /* The reminder stays dismissed until this page is reloaded. */
+    }
+  }
   if (night)
     return (
       <main className={`night-screen${waking ? " night-screen-waking" : ""}`}>
@@ -205,11 +233,35 @@ export function Dashboard({
             {a.title}
           </p>
         ))}
-        {data.pickups
-          .filter((p) => p.date === addDays(today, 1))
-          .map((p) => (
-            <p key={p.id}>Tomorrow: {p.id} pickup</p>
-          ))}
+        {tomorrowPickups.length > 0 && (
+          <div className="night-pickup-toasts" aria-label="Pickup reminders">
+            {tomorrowPickups.map((pickup) => {
+              const label =
+                data.settings.schedules.find((s) => s.id === pickup.id)
+                  ?.label ?? pickup.id;
+              return (
+                <div className="night-pickup-toast" role="status" key={pickup.id}>
+                  <span className="night-pickup-toast-icon" aria-hidden="true">
+                    {pickup.id === "trash" ? "🗑" : "♻"}
+                  </span>
+                  <div className="night-pickup-toast-copy">
+                    <span className="night-pickup-toast-kicker">PICKUP REMINDER</span>
+                    <strong>{label} pickup tomorrow</strong>
+                    <span>Set it out tonight.</span>
+                  </div>
+                  <button
+                    className="night-pickup-toast-dismiss"
+                    type="button"
+                    aria-label={`Dismiss ${label} pickup reminder`}
+                    onClick={() => dismissPickup(pickup.id, addDays(today, 1))}
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
         {stale && (
           <small>Some integrations are unavailable · last known data</small>
         )}

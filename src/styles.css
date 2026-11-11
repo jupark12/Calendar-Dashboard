@@ -999,6 +999,70 @@ form {
 .night-alert {
   color: #b7a17a;
 }
+.night-pickup-toasts {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 3;
+  display: grid;
+  gap: 12px;
+  width: min(430px, calc(100% - 48px));
+}
+.night-pickup-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid #d8b987;
+  border-radius: 16px;
+  background: #273329;
+  color: #f7f3e9;
+  box-shadow: 0 16px 42px #0008;
+}
+.night-pickup-toast-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #e9ba72;
+  color: #263126;
+  font-size: 29px;
+  line-height: 1;
+}
+.night-pickup-toast-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding-top: 2px;
+  font-size: 15px;
+  line-height: 1.35;
+}
+.night-pickup-toast-copy strong {
+  font-size: 22px;
+  line-height: 1.15;
+}
+.night-pickup-toast-kicker {
+  color: #e9ba72;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.night-pickup-toast-dismiss {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  margin: -7px -7px 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  color: #f7f3e9;
+  font-size: 30px;
+  line-height: 1;
+}
+.night-pickup-toast-dismiss:hover {
+  background: #ffffff24;
+}
 .access-page {
   display: flex;
   align-items: center;
@@ -1731,6 +1795,18 @@ form {
   }
   .night-screen {
     gap: 15px;
+  }
+  .night-pickup-toasts {
+    top: 12px;
+    right: 12px;
+    width: calc(100% - 24px);
+  }
+  .night-pickup-toast {
+    padding: 14px;
+    gap: 12px;
+  }
+  .night-pickup-toast-copy strong {
+    font-size: 19px;
   }
   .night-details h2 {
     font-size: 22.8px;
