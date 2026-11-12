@@ -2,6 +2,36 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { Photo } from "../shared/photos";
 import { api } from "./data";
 
+const albumPollMs = 60 * 60 * 1000;
+type AlbumState = { photos: Photo[]; checkedAt: number; error: string };
+let albumState: AlbumState = { photos: [], checkedAt: 0, error: "" };
+let albumRequest: Promise<AlbumState> | null = null;
+const photoSources = new Map<string, string>();
+
+function checkAlbum(): Promise<AlbumState> {
+  if (albumRequest) return albumRequest;
+  if (Date.now() - albumState.checkedAt < albumPollMs)
+    return Promise.resolve(albumState);
+  const checkedAt = Date.now();
+  albumState = { ...albumState, checkedAt };
+  albumRequest = api("/photos")
+    .then((result: { photos: Photo[] }) => {
+      albumState = { photos: result.photos, checkedAt, error: "" };
+      return albumState;
+    })
+    .catch(() => {
+      albumState = {
+        ...albumState,
+        error: "Photos are temporarily unavailable.",
+      };
+      return albumState;
+    })
+    .finally(() => {
+      albumRequest = null;
+    });
+  return albumRequest;
+}
+
 const eucalyptusPositions = [
   { x: 3, y: 6, rotation: -38, scale: 0.95, flip: false },
   { x: 23, y: 2, rotation: 22, scale: 0.82, flip: true },
@@ -127,47 +157,60 @@ function AlbumCarnation({ pink }: { pink: boolean }) {
 }
 
 export function PhotoAlbum() {
-  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [photos, setPhotos] = useState<Photo[]>(() => albumState.photos);
   const [index, setIndex] = useState(0);
-  const [error, setError] = useState("");
-  const [sources, setSources] = useState<Record<string, string>>({});
-  const sourceCache = useRef(new Map<string, string>());
+  const [error, setError] = useState(() => albumState.error);
+  const [sources, setSources] = useState<Record<string, string>>(() =>
+    Object.fromEntries(photoSources),
+  );
+  const sourceCache = useRef(photoSources);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   useEffect(() => {
     let active = true;
+    let timer: number;
+    function schedule() {
+      window.clearTimeout(timer);
+      if (!active || document.hidden) return;
+      timer = window.setTimeout(
+        () => void refresh(),
+        Math.max(1000, albumState.checkedAt + albumPollMs - Date.now()),
+      );
+    }
     async function refresh() {
       if (document.hidden) return;
-      try {
-        const result = (await api("/photos")) as { photos: Photo[] };
-        if (active) {
-          setPhotos(result.photos);
-          setIndex((current) =>
-            Math.min(current, Math.max(0, result.photos.length - 1)),
-          );
-          setError("");
-        }
-      } catch {
-        if (active) setError("Photos are temporarily unavailable.");
-      }
+      const result = await checkAlbum();
+      if (!active) return;
+      setPhotos(result.photos);
+      setIndex((current) =>
+        Math.min(current, Math.max(0, result.photos.length - 1)),
+      );
+      setError(result.error);
+      schedule();
+    }
+    function onVisibilityChange() {
+      if (document.hidden) window.clearTimeout(timer);
+      else void refresh();
     }
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 5 * 60_000);
-    document.addEventListener("visibilitychange", refresh);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       active = false;
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", refresh);
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
     const currentIds = new Set(photos.map((photo) => photo.id));
+    let removed = false;
     for (const [id, url] of sourceCache.current) {
       if (currentIds.has(id)) continue;
       URL.revokeObjectURL(url);
       sourceCache.current.delete(id);
+      removed = true;
     }
+    if (removed) setSources(Object.fromEntries(sourceCache.current));
     for (const photo of photos) {
       if (sourceCache.current.has(photo.id)) continue;
       void fetch(photo.url, {
@@ -193,13 +236,6 @@ export function PhotoAlbum() {
       controller.abort();
     };
   }, [photos]);
-  useEffect(
-    () => () => {
-      for (const url of sourceCache.current.values()) URL.revokeObjectURL(url);
-      sourceCache.current.clear();
-    },
-    [],
-  );
   useEffect(() => {
     if (photos.length < 2) return;
     const timer = window.setInterval(() => {
