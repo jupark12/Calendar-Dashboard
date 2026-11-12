@@ -237,7 +237,7 @@ export function createHandler(deps: Dependencies) {
         try {
           image = decodePhoto(photoUploadSchema.parse(body).data);
         } catch {
-          return failure(400, "Upload a JPEG photo under 700 KB.");
+          return failure(400, "Upload a JPEG photo under 300 KB.");
         }
         const id = randomUUID();
         if (!(await photos.add(id, image)))

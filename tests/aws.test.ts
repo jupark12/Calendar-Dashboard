@@ -94,7 +94,7 @@ function fixture() {
       list: async () => [...photos.keys()],
       get: async (id: string) => photos.get(id) ?? null,
       add: async (id: string, image: Buffer) => {
-        if (photos.size >= 10) return false;
+        if (photos.size >= 100) return false;
         photos.set(id, image);
         return true;
       },
@@ -225,7 +225,7 @@ test("Lambda photo access and private image responses", async () => {
     (await f.request(`/photos/${id}`, "GET", undefined, display)).statusCode,
     404,
   );
-  for (let i = 0; i < 10; i++)
+  for (let i = 0; i < 100; i++)
     assert.equal(
       (await f.request("/photos", "POST", { data }, admin)).statusCode,
       201,

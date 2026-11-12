@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import type { Photo } from "../shared/photos";
+import { maxPhotos, type Photo } from "../shared/photos";
 import { api } from "./data";
 
 const albumPollMs = 60 * 60 * 1000;
@@ -7,6 +7,27 @@ type AlbumState = { photos: Photo[]; checkedAt: number; error: string };
 let albumState: AlbumState = { photos: [], checkedAt: 0, error: "" };
 let albumRequest: Promise<AlbumState> | null = null;
 const photoSources = new Map<string, string>();
+const photoRequests = new Map<string, Promise<string>>();
+
+function loadPhoto(photo: Photo): Promise<string> {
+  const cached = photoSources.get(photo.id);
+  if (cached) return Promise.resolve(cached);
+  const pending = photoRequests.get(photo.id);
+  if (pending) return pending;
+  const request = fetch(photo.url, { credentials: "same-origin" })
+    .then((response) => {
+      if (!response.ok) throw new Error("Photo unavailable");
+      return response.blob();
+    })
+    .then((blob) => {
+      const url = URL.createObjectURL(blob);
+      photoSources.set(photo.id, url);
+      return url;
+    })
+    .finally(() => photoRequests.delete(photo.id));
+  photoRequests.set(photo.id, request);
+  return request;
+}
 
 function checkAlbum(): Promise<AlbumState> {
   if (albumRequest) return albumRequest;
@@ -163,8 +184,8 @@ export function PhotoAlbum() {
   const [sources, setSources] = useState<Record<string, string>>(() =>
     Object.fromEntries(photoSources),
   );
-  const sourceCache = useRef(photoSources);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const dotsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let active = true;
     let timer: number;
@@ -201,31 +222,22 @@ export function PhotoAlbum() {
   }, []);
   useEffect(() => {
     let active = true;
-    const controller = new AbortController();
     const currentIds = new Set(photos.map((photo) => photo.id));
     let removed = false;
-    for (const [id, url] of sourceCache.current) {
+    for (const [id, url] of photoSources) {
       if (currentIds.has(id)) continue;
       URL.revokeObjectURL(url);
-      sourceCache.current.delete(id);
+      photoSources.delete(id);
       removed = true;
     }
-    if (removed) setSources(Object.fromEntries(sourceCache.current));
-    for (const photo of photos) {
-      if (sourceCache.current.has(photo.id)) continue;
-      void fetch(photo.url, {
-        credentials: "same-origin",
-        signal: controller.signal,
-      })
-        .then((response) => {
-          if (!response.ok) throw new Error("Photo unavailable");
-          return response.blob();
-        })
-        .then((blob) => {
-          if (!active) return;
-          const url = URL.createObjectURL(blob);
-          sourceCache.current.set(photo.id, url);
-          setSources((current) => ({ ...current, [photo.id]: url }));
+    if (removed) setSources(Object.fromEntries(photoSources));
+    const lookahead = [photos[index], photos[(index + 1) % photos.length]];
+    for (const photo of lookahead) {
+      if (!photo) continue;
+      void loadPhoto(photo)
+        .then((url) => {
+          if (active)
+            setSources((current) => ({ ...current, [photo.id]: url }));
         })
         .catch(() => {
           /* Keep the album available if one image fails. */
@@ -233,9 +245,15 @@ export function PhotoAlbum() {
     }
     return () => {
       active = false;
-      controller.abort();
     };
-  }, [photos]);
+  }, [photos, index]);
+  useEffect(() => {
+    const dots = dotsRef.current;
+    const activeDot = dots?.children[index] as HTMLElement | undefined;
+    if (!dots || !activeDot) return;
+    dots.scrollLeft =
+      activeDot.offsetLeft - dots.clientWidth / 2 + activeDot.clientWidth / 2;
+  }, [index, photos.length]);
   useEffect(() => {
     if (photos.length < 2) return;
     const timer = window.setInterval(() => {
@@ -320,13 +338,20 @@ export function PhotoAlbum() {
           <span>✿</span>
           <h2>Your family album</h2>
           <p>
-            {error || "Add up to 10 photos in Manage to start the slideshow."}
+            {error ||
+              `Add up to ${maxPhotos} photos in Manage to start the slideshow.`}
           </p>
           <a href="/manage">Manage photos ↗</a>
         </div>
       )}
       {photos.length > 1 && (
-        <div className="photo-dots" aria-label="Choose a photo">
+        <div
+          className="photo-dots"
+          aria-label="Choose a photo"
+          ref={dotsRef}
+          onTouchStart={(event) => event.stopPropagation()}
+          onTouchEnd={(event) => event.stopPropagation()}
+        >
           {photos.map((photo, position) => (
             <button
               key={photo.id}

@@ -98,7 +98,7 @@ test("authentication, role boundaries, CSRF, list conflicts, persistence, and se
       (await request(`/photos/${photo.id}`, "GET", undefined, dc)).status,
       404,
     );
-    for (let i = 0; i < 10; i++)
+    for (let i = 0; i < 100; i++)
       assert.equal(
         (await request("/photos", "POST", { data: jpeg }, ac)).status,
         201,

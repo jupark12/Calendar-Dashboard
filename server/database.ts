@@ -10,6 +10,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { defaultSettings, type Item, type Settings } from "../shared/model";
+import { maxPhotos } from "../shared/photos";
 export class Store {
   db: DatabaseSync;
   constructor(path: string) {
@@ -115,7 +116,7 @@ export class Store {
       const count = this.db
         .prepare("SELECT count(*) AS count FROM photos")
         .get() as { count: number };
-      if (count.count >= 10) {
+      if (count.count >= maxPhotos) {
         this.db.exec("ROLLBACK");
         return false;
       }

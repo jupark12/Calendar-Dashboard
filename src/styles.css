@@ -416,12 +416,19 @@ form {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  max-width: calc(100% - 30px);
+  overflow-x: auto;
+  scrollbar-width: none;
   gap: 5px;
   padding: 7px 10px;
   border-radius: 18px;
   background: #17251ab8;
 }
+.photo-dots::-webkit-scrollbar {
+  display: none;
+}
 .photo-dots button {
+  flex: 0 0 18px;
   width: 18px;
   height: 18px;
   padding: 5px;
