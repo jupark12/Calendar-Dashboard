@@ -3,12 +3,35 @@ import { maxPhotoBytes, maxPhotos, type Photo } from "../shared/photos";
 import { api } from "./data";
 
 async function resize(file: File): Promise<string> {
-  if (!file.type.startsWith("image/")) throw new Error("Choose an image file.");
-  const url = URL.createObjectURL(file);
+  const heicName = /\.(heic|heif)$/i.test(file.name);
+  if (file.type && !file.type.startsWith("image/") && !heicName)
+    throw new Error("Choose an image file.");
+  let url = URL.createObjectURL(file);
   try {
     const image = new Image();
     image.src = url;
-    await image.decode();
+    try {
+      await image.decode();
+    } catch (decodeError) {
+      const { heicTo, isHeic } = await import("heic-to/csp");
+      if (!(await isHeic(file))) throw decodeError;
+      let converted: Blob;
+      try {
+        converted = await heicTo({
+          blob: file,
+          type: "image/jpeg",
+          quality: 0.9,
+        });
+      } catch {
+        throw new Error(
+          "This HEIC photo could not be opened. Try exporting it as JPEG.",
+        );
+      }
+      URL.revokeObjectURL(url);
+      url = URL.createObjectURL(converted);
+      image.src = url;
+      await image.decode();
+    }
     const scale = Math.min(
       1,
       1280 / Math.max(image.naturalWidth, image.naturalHeight),
@@ -60,7 +83,8 @@ export function ManagePhotos({
       <h2>Family photos</h2>
       <p>
         Add up to {maxPhotos} photos. The display changes photos every 10
-        seconds; swipe or tap a dot to move through them.
+        seconds; swipe or tap a dot to move through them. HEIC photos are
+        converted to JPEG when uploaded.
       </p>
       {error && (
         <p className="error" role="alert">
@@ -71,7 +95,7 @@ export function ManagePhotos({
         Add photos
         <input
           type="file"
-          accept="image/*"
+          accept="image/*,.heic,.heif"
           multiple
           disabled={busy || photos.length >= maxPhotos}
           onChange={(event) => {
