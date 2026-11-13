@@ -9,6 +9,19 @@ let albumRequest: Promise<AlbumState> | null = null;
 const photoSources = new Map<string, string>();
 const photoRequests = new Map<string, Promise<string>>();
 
+function shufflePhotos(photos: Photo[], previousLastId?: string): Photo[] {
+  const shuffled = [...photos];
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const other = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[other]] = [shuffled[other], shuffled[index]];
+  }
+  if (shuffled.length > 1 && shuffled[0].id === previousLastId) {
+    const other = 1 + Math.floor(Math.random() * (shuffled.length - 1));
+    [shuffled[0], shuffled[other]] = [shuffled[other], shuffled[0]];
+  }
+  return shuffled;
+}
+
 function loadPhoto(photo: Photo): Promise<string> {
   const cached = photoSources.get(photo.id);
   if (cached) return Promise.resolve(cached);
@@ -37,7 +50,15 @@ function checkAlbum(): Promise<AlbumState> {
   albumState = { ...albumState, checkedAt };
   albumRequest = api("/photos")
     .then((result: { photos: Photo[] }) => {
-      albumState = { photos: result.photos, checkedAt, error: "" };
+      const ids = new Set(result.photos.map((photo) => photo.id));
+      const unchanged =
+        albumState.photos.length === result.photos.length &&
+        albumState.photos.every((photo) => ids.has(photo.id));
+      albumState = {
+        photos: unchanged ? albumState.photos : shufflePhotos(result.photos),
+        checkedAt,
+        error: "",
+      };
       return albumState;
     })
     .catch(() => {
@@ -260,12 +281,19 @@ export function PhotoAlbum() {
   useEffect(() => {
     if (photos.length < 2) return;
     const timer = window.setInterval(() => {
-      if (!document.hidden)
-        setIndex((current) => (current + 1) % photos.length);
+      if (!document.hidden) move(1);
     }, 10_000);
     return () => window.clearInterval(timer);
-  }, [photos.length, index]);
+  }, [photos, index]);
   function move(direction: number) {
+    if (photos.length < 2) return;
+    if (direction > 0 && index === photos.length - 1) {
+      const shuffled = shufflePhotos(photos, photos[index].id);
+      albumState = { ...albumState, photos: shuffled };
+      setPhotos(shuffled);
+      setIndex(0);
+      return;
+    }
     setIndex(
       (current) => (current + direction + photos.length) % photos.length,
     );

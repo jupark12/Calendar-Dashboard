@@ -82,9 +82,9 @@ export function ManagePhotos({
     <section className="panel settings-panel manage-photos">
       <h2>Family photos</h2>
       <p>
-        Add up to {maxPhotos} photos. The display changes photos every 10
-        seconds; swipe, drag, or tap a dot to move through them. HEIC photos are
-        converted to JPEG when uploaded.
+        Add up to {maxPhotos} photos. The display shows them in a shuffled order
+        and changes photos every 10 seconds; swipe, drag, or tap a dot to move
+        through them. HEIC photos are converted to JPEG when uploaded.
       </p>
       {error && (
         <p className="error" role="alert">
