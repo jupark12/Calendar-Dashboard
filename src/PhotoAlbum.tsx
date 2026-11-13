@@ -424,14 +424,6 @@ export function PhotoAlbum() {
           onTouchStart={(event) => event.stopPropagation()}
           onTouchEnd={(event) => event.stopPropagation()}
         >
-          <button
-            className="photo-step"
-            type="button"
-            aria-label="Previous photo"
-            onClick={() => move(-1)}
-          >
-            ‹
-          </button>
           {visibleDots.map((photo, position) => (
             <button
               key={photo.id}
@@ -442,14 +434,6 @@ export function PhotoAlbum() {
               onClick={() => setIndex(firstDot + position)}
             />
           ))}
-          <button
-            className="photo-step"
-            type="button"
-            aria-label="Next photo"
-            onClick={() => move(1)}
-          >
-            ›
-          </button>
           <span className="photo-position">
             {index + 1}/{photos.length}
           </span>

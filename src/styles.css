@@ -454,21 +454,8 @@ form {
 .photo-dots .photo-dot[aria-current="true"]::after {
   background: #fff;
 }
-.photo-dots button:hover {
+.photo-dots .photo-dot:hover {
   background: #ffffff30;
-}
-.photo-dots .photo-step {
-  flex: 0 0 22px;
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  color: #fff;
-  font-size: 24px;
-  line-height: 1;
 }
 .photo-position {
   min-width: 42px;
