@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type PointerEvent } from "react";
 import { maxPhotos, type Photo } from "../shared/photos";
 import { api } from "./data";
 
@@ -184,7 +184,13 @@ export function PhotoAlbum() {
   const [sources, setSources] = useState<Record<string, string>>(() =>
     Object.fromEntries(photoSources),
   );
+  const [dragging, setDragging] = useState(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const dragStart = useRef<{
+    pointerId: number;
+    x: number;
+    y: number;
+  } | null>(null);
   const firstDot = Math.min(
     Math.max(0, index - 2),
     Math.max(0, photos.length - 5),
@@ -264,9 +270,22 @@ export function PhotoAlbum() {
       (current) => (current + direction + photos.length) % photos.length,
     );
   }
+  function endDrag(event: PointerEvent<HTMLElement>, cancelled = false) {
+    const start = dragStart.current;
+    if (!start || start.pointerId !== event.pointerId) return;
+    dragStart.current = null;
+    event.currentTarget.style.removeProperty("--photo-drag-x");
+    setDragging(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    if (cancelled) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) move(dx < 0 ? 1 : -1);
+  }
   return (
     <section
-      className="photo-album panel"
+      className={`photo-album panel${photos.length > 1 ? " can-drag" : ""}${dragging ? " is-dragging" : ""}`}
       aria-label="Family photo album"
       tabIndex={0}
       onKeyDown={(event) => {
@@ -274,6 +293,31 @@ export function PhotoAlbum() {
         if (event.key === "ArrowRight") move(1);
         if (event.key === "ArrowLeft") move(-1);
       }}
+      onPointerDown={(event) => {
+        if (
+          event.pointerType === "touch" ||
+          event.button !== 0 ||
+          photos.length < 2 ||
+          (event.target as Element).closest("button, a")
+        )
+          return;
+        dragStart.current = {
+          pointerId: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+        };
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setDragging(true);
+      }}
+      onPointerMove={(event) => {
+        const start = dragStart.current;
+        if (!start || start.pointerId !== event.pointerId) return;
+        const offset = Math.max(-80, Math.min(80, event.clientX - start.x));
+        event.currentTarget.style.setProperty("--photo-drag-x", `${offset}px`);
+      }}
+      onPointerUp={endDrag}
+      onPointerCancel={(event) => endDrag(event, true)}
+      onLostPointerCapture={(event) => endDrag(event, true)}
       onTouchStart={(event) => {
         touchStart.current = {
           x: event.touches[0].clientX,
@@ -286,6 +330,9 @@ export function PhotoAlbum() {
         const dy = event.changedTouches[0].clientY - touchStart.current.y;
         if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy))
           move(dx < 0 ? 1 : -1);
+        touchStart.current = null;
+      }}
+      onTouchCancel={() => {
         touchStart.current = null;
       }}
     >

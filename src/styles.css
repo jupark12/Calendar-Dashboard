@@ -349,6 +349,12 @@ form {
   background: #e8e9df;
   touch-action: pan-y;
 }
+.photo-album.can-drag {
+  cursor: grab;
+}
+.photo-album.is-dragging {
+  cursor: grabbing;
+}
 .photo-botanicals,
 .photo-carnations {
   position: absolute;
@@ -385,6 +391,11 @@ form {
   height: 100%;
   object-fit: contain;
   user-select: none;
+  transform: translateX(var(--photo-drag-x, 0px));
+  transition: transform 180ms ease-out;
+}
+.photo-album.is-dragging > img {
+  transition: none;
 }
 .photo-empty {
   position: relative;

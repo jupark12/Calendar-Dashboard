@@ -83,7 +83,7 @@ export function ManagePhotos({
       <h2>Family photos</h2>
       <p>
         Add up to {maxPhotos} photos. The display changes photos every 10
-        seconds; swipe or tap a dot to move through them. HEIC photos are
+        seconds; swipe, drag, or tap a dot to move through them. HEIC photos are
         converted to JPEG when uploaded.
       </p>
       {error && (
