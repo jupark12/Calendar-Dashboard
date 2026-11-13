@@ -185,7 +185,11 @@ export function PhotoAlbum() {
     Object.fromEntries(photoSources),
   );
   const touchStart = useRef<{ x: number; y: number } | null>(null);
-  const dotsRef = useRef<HTMLDivElement>(null);
+  const firstDot = Math.min(
+    Math.max(0, index - 2),
+    Math.max(0, photos.length - 5),
+  );
+  const visibleDots = photos.slice(firstDot, firstDot + 5);
   useEffect(() => {
     let active = true;
     let timer: number;
@@ -247,13 +251,6 @@ export function PhotoAlbum() {
       active = false;
     };
   }, [photos, index]);
-  useEffect(() => {
-    const dots = dotsRef.current;
-    const activeDot = dots?.children[index] as HTMLElement | undefined;
-    if (!dots || !activeDot) return;
-    dots.scrollLeft =
-      activeDot.offsetLeft - dots.clientWidth / 2 + activeDot.clientWidth / 2;
-  }, [index, photos.length]);
   useEffect(() => {
     if (photos.length < 2) return;
     const timer = window.setInterval(() => {
@@ -348,19 +345,39 @@ export function PhotoAlbum() {
         <div
           className="photo-dots"
           aria-label="Choose a photo"
-          ref={dotsRef}
+          role="group"
           onTouchStart={(event) => event.stopPropagation()}
           onTouchEnd={(event) => event.stopPropagation()}
         >
-          {photos.map((photo, position) => (
+          <button
+            className="photo-step"
+            type="button"
+            aria-label="Previous photo"
+            onClick={() => move(-1)}
+          >
+            ‹
+          </button>
+          {visibleDots.map((photo, position) => (
             <button
               key={photo.id}
+              className="photo-dot"
               type="button"
-              aria-label={`Show photo ${position + 1}`}
-              aria-current={position === index ? "true" : undefined}
-              onClick={() => setIndex(position)}
+              aria-label={`Show photo ${firstDot + position + 1}`}
+              aria-current={firstDot + position === index ? "true" : undefined}
+              onClick={() => setIndex(firstDot + position)}
             />
           ))}
+          <button
+            className="photo-step"
+            type="button"
+            aria-label="Next photo"
+            onClick={() => move(1)}
+          >
+            ›
+          </button>
+          <span className="photo-position">
+            {index + 1}/{photos.length}
+          </span>
         </div>
       )}
     </section>

@@ -416,18 +416,14 @@ form {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  align-items: center;
   max-width: calc(100% - 30px);
-  overflow-x: auto;
-  scrollbar-width: none;
   gap: 5px;
   padding: 7px 10px;
   border-radius: 18px;
   background: #17251ab8;
 }
-.photo-dots::-webkit-scrollbar {
-  display: none;
-}
-.photo-dots button {
+.photo-dots .photo-dot {
   flex: 0 0 18px;
   width: 18px;
   height: 18px;
@@ -436,7 +432,7 @@ form {
   border-radius: 50%;
   background: transparent;
 }
-.photo-dots button::after {
+.photo-dots .photo-dot::after {
   content: "";
   display: block;
   width: 8px;
@@ -444,11 +440,31 @@ form {
   border-radius: 50%;
   background: #ffffff82;
 }
-.photo-dots button[aria-current="true"]::after {
+.photo-dots .photo-dot[aria-current="true"]::after {
   background: #fff;
 }
 .photo-dots button:hover {
   background: #ffffff30;
+}
+.photo-dots .photo-step {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+}
+.photo-position {
+  min-width: 42px;
+  color: #fff;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 .photo-upload {
   margin: 20px 0;
